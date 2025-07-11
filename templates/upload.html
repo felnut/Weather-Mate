@@ -140,6 +140,7 @@
                <option value="snow">눈 (snow)</option>
                <option value="thunderstorm">천둥번개 (thunderstorm)</option>
                <option value="fog">안개 (fog)</option>
+               <option value="default">기본 이미지 (default)</option>
             </select>
          </div>
 
@@ -283,11 +284,11 @@
 
          // 날씨 선택 시 이벤트
          weatherSelect.addEventListener("change", () => {
-            clearMessage();               // 메시지 초기화
-            previewContainer.classList.add("hidden"); // 미리보기 숨김
-            imageInput.value = "";        // 파일 선택 초기화
-            imageUrlInput.value = "";     // URL 입력 초기화
-            fileNameSpan.textContent = ""; // 파일명 표시 초기화
+            clearMessage();
+            previewContainer.classList.add("hidden");
+            imageInput.value = "";
+            imageUrlInput.value = "";
+            fileNameSpan.textContent = "";
 
             const selected = weatherSelect.value;
 
@@ -297,7 +298,31 @@
                return;
             }
 
-            // 선택한 날씨가 이미 업로드된 상태면 메시지 출력
+            if (selected === "default") {
+               if (confirm("모든 날씨 이미지를 기본 이미지로 초기화하시겠습니까?")) {
+                  fetch("/reset-all-images", { method: "POST" })
+                     .then(res => res.json())
+                     .then(result => {
+                        if (result.success) {
+                           uploadedWeather = null;
+                           uploadedImageUrl = null;
+                           showMessage("✅ 모든 날씨 이미지가 기본 이미지로 초기화 되었습니다.", "success");
+                           // 선택값 초기화
+                           weatherSelect.value = "";
+                        } else {
+                           showMessage("⚠️ 초기화에 실패했습니다.", "warn");
+                        }
+                     })
+                     .catch(() => {
+                        showMessage("❌ 서버 오류가 발생했습니다.", "error");
+                     });
+               } else {
+                  // 취소 시 선택값 초기화
+                  weatherSelect.value = "";
+               }
+               return;
+            }
+
             if (uploadedWeather === selected && uploadedImageUrl) {
                showMessage("✅ 이미 업로드 하셨습니다.", "success");
             }

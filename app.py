@@ -358,17 +358,23 @@ def upload_image():
 
    return jsonify({'success': False, 'message': '이미지 파일 또는 URL이 필요합니다.'})
 
-@app.route('/reset-images', methods=['POST'])
-def reset_images():
-   # 업로드된 모든 이미지 삭제 (권한 변경 포함)
+@app.route('/reset-all-images', methods=['POST'])
+def reset_all_images():
    try:
-      for fname in os.listdir(UPLOAD_FOLDER):
-         fpath = os.path.join(UPLOAD_FOLDER, fname)
-         os.chmod(fpath, stat.S_IWRITE)  # 쓰기 권한 부여
-         os.remove(fpath)
-      return jsonify({'success': True})
+      # 기본 이미지로 덮어쓰기 로직 구현 (예: 기본 이미지 복사, 삭제 등)
+      # 예시: 기본 이미지 디렉토리에서 사용자 업로드 이미지 덮어쓰기 or 삭제 처리
+      # 기본 이미지 경로 예: static/weather_images/default_clear.png 등
+
+      # 예를 들어 모든 사용자 업로드 이미지 삭제:
+      upload_dir = os.path.join(app.root_path, 'static', 'weather_images')
+      for fname in os.listdir(upload_dir):
+         fpath = os.path.join(upload_dir, fname)
+         if os.path.isfile(fpath):
+            os.remove(fpath)
+
+      return jsonify(success=True)
    except Exception as e:
-      return jsonify({'success': False, 'message': str(e)})
+      return jsonify(success=False, message=str(e))
 
 # 캐시된 정적 파일 최대 캐시 시간 설정 (1시간)
 app.send_file_max_age_default = 3600
