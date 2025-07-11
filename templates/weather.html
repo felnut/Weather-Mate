@@ -4,11 +4,14 @@
 <head>
    <meta charset="UTF-8" />
    <title>날씨 친구</title>
+
    <!-- 파비콘 설정 -->
    <link rel="shortcut icon" href="{{ url_for('static', filename='icons/WeatherMateHaveWord.ico') }}">
    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
    <!-- Tailwind CSS 불러오기 -->
    <script src="https://cdn.tailwindcss.com"></script>
+
    <style>
       /* 예보 컨테이너 가로 스크롤 가능하게 설정 */
       #forecast-container {
@@ -28,33 +31,29 @@
          border-radius: 4px;
       }
 
-      /* 검색 버튼 기본 스타일 및 호버 효과 */
+      /* 검색 버튼 스타일 */
       #search-btn {
          transition: background-color 0.3s ease, box-shadow 0.3s ease;
-         box-shadow:
-            0 4px 6px -1px rgba(59, 130, 246, 0.5),
+         box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5),
             0 2px 4px -1px rgba(37, 99, 235, 0.4);
       }
 
       #search-btn:hover {
          background: linear-gradient(90deg, #2563eb, #1e40af);
-         box-shadow:
-            0 8px 12px -2px rgba(37, 99, 235, 0.6),
+         box-shadow: 0 8px 12px -2px rgba(37, 99, 235, 0.6),
             0 4px 6px -2px rgba(30, 64, 175, 0.5);
       }
 
-      /* 업로드 버튼 기본 스타일 및 호버 효과 */
+      /* 업로드 버튼 스타일 */
       #go-upload-btn {
          transition: background-color 0.3s ease, box-shadow 0.3s ease;
-         box-shadow:
-            0 4px 6px -1px rgba(34, 197, 94, 0.5),
+         box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.5),
             0 2px 4px -1px rgba(22, 163, 74, 0.4);
       }
 
       #go-upload-btn:hover {
          background: linear-gradient(90deg, #16a34a, #15803d);
-         box-shadow:
-            0 8px 12px -2px rgba(22, 163, 74, 0.6),
+         box-shadow: 0 8px 12px -2px rgba(22, 163, 74, 0.6),
             0 4px 6px -2px rgba(21, 128, 61, 0.5);
       }
    </style>
@@ -66,16 +65,19 @@
    <!-- 앱 로고 -->
    <img src="../static/icons/WeatherMateNoWord.ico" alt="날씨 친구 로고" class="w-48 h-35 mb-4 drop-shadow-lg" loading="lazy"
       decoding="async" />
-   <!-- 앱 제목과 설명 -->
+
+   <!-- 앱 제목 -->
    <h2 class="text-4xl font-extrabold mb-2 text-center text-blue-900 drop-shadow-md">날씨 친구</h2>
+
+   <!-- 앱 설명 -->
    <h3 class="text-lg mb-6 text-center text-blue-700 max-w-xl">지도에서 위치를 클릭하거나 주소를 입력하여<br />날씨 정보를 확인하세요!</h3>
 
-   <!-- 구글 지도 영역 -->
+   <!-- 구글 지도 표시 영역 -->
    <div id="map"
       class="w-full max-w-5xl h-96 rounded-xl shadow-xl border border-blue-300 transition-shadow hover:shadow-2xl"
       role="region" aria-label="날씨 지도"></div>
 
-   <!-- 주소 입력 및 검색 버튼 -->
+   <!-- 주소 입력창 + 검색 버튼 -->
    <div class="mt-6 max-w-5xl w-full flex gap-3">
       <input type="text" id="address-input" placeholder="주소를 입력하세요"
          class="flex-grow rounded-xl border border-blue-300 px-5 py-3 text-blue-900 placeholder-blue-400 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-400 transition" />
@@ -85,7 +87,7 @@
       </button>
    </div>
 
-   <!-- 이미지 업로드 페이지 이동 버튼 -->
+   <!-- 업로드 페이지로 이동 버튼 -->
    <div class="mt-6 max-w-5xl w-full flex justify-end items-center gap-2 text-blue-900">
       <button id="go-upload-btn" type="button"
          class="inline-flex items-center justify-center bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold px-5 py-3 rounded-xl shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300 transition select-none">
@@ -93,62 +95,55 @@
       </button>
    </div>
 
-   <!-- 경고 메시지 (한국 이외 지역 선택 시 참고) -->
+   <!-- 경고 메시지 (한국 외 지역 선택 시 표시됨) -->
    <div id="warning-message"
       class="bg-yellow-300 text-yellow-900 text-center py-2 text-sm font-semibold rounded-xl mt-6 max-w-5xl w-full select-none hidden">
       ⚠️ 북한이나 해외는 주소 정보가 부분적으로 영어가 표시될 수 있습니다.<br />
       다만, 날씨 정보는 정확하게 제공됩니다.
    </div>
 
-   <!-- 날씨 정보 및 이미지 영역 -->
+   <!-- 현재 날씨 정보 및 이미지 -->
    <section id="info-container"
       class="mt-8 max-w-5xl w-full bg-white rounded-3xl shadow-2xl p-8 flex flex-col md:flex-row md:items-center gap-8 text-blue-900 border border-blue-200">
-
       <div id="info" class="flex-1 text-lg leading-relaxed select-text text-center md:text-left">
          날씨 정보 없음
       </div>
-
       <img id="weather-img" src="" alt="날씨 이미지"
          class="w-40 h-40 rounded-xl object-cover shadow-inner self-center mx-auto md:mx-0" loading="lazy"
          decoding="async" />
-
    </section>
 
-   <!-- 예보 리스트 영역 -->
+   <!-- 날씨 예보 리스트 -->
    <section id="forecast-container"
       class="mt-6 max-w-5xl w-full bg-white rounded-xl p-4 shadow-inner border border-blue-200 whitespace-nowrap overflow-x-auto">
-
       <div id="forecast-list" class="inline-flex gap-3"></div>
    </section>
 
+   <!-- 주요 자바스크립트 로직 시작 -->
    <script>
-      // 1. 클라이언트 캐시: 이전에 요청한 좌표와 날씨 데이터를 저장하여 중복 요청 방지
+      // 날씨 요청 캐시 및 상태 변수
       const weatherCache = new Map();
-      let lastRequestedCoords = null; // 마지막 요청한 좌표
-      let isRequesting = false;       // 현재 요청 중인지 여부
+      let lastRequestedCoords = null;
+      let isRequesting = false;
 
-      // 날씨 정보 요청 중 표시 UI
+      // 로딩 표시 함수
       function showLoading() {
-         const infoEl = document.getElementById("info");
-         infoEl.innerText = "날씨 정보를 불러오는 중...";
+         document.getElementById("info").innerText = "날씨 정보를 불러오는 중...";
          document.getElementById("weather-img").src = "";
          document.getElementById("forecast-list").innerHTML = "";
       }
 
-      // 좌표로 날씨 API 요청하고 UI 갱신
+      // API로 날씨 정보 요청 후 UI 갱신
       async function fetchWeatherAndUpdate(lat, lon, marker) {
-         const coordKey = `${lat.toFixed(5)},${lon.toFixed(5)}`; // 좌표 키 생성 (소수점 5자리)
-         if (lastRequestedCoords === coordKey && isRequesting) return; // 중복 요청 차단
+         const coordKey = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+         if (lastRequestedCoords === coordKey && isRequesting) return;
          lastRequestedCoords = coordKey;
 
-         // 캐시 있으면 캐시 데이터로 UI 갱신
          if (weatherCache.has(coordKey)) {
-            console.log("캐시 사용:", coordKey);
             updateUIWithWeatherData(weatherCache.get(coordKey), marker, lat, lon);
             return;
          }
 
-         // 캐시 없으면 API 요청
          marker.setPosition({ lat, lng: lon });
          showLoading();
          isRequesting = true;
@@ -163,126 +158,112 @@
             if (!response.ok) throw new Error(`서버 응답 오류: ${response.status}`);
 
             const data = await response.json();
-
             if (data.cod !== 200) {
                showError("날씨 정보를 불러오지 못했습니다.");
-               isRequesting = false;
                return;
             }
 
-            // 캐시에 저장
             weatherCache.set(coordKey, data);
-
-            // UI 갱신
             updateUIWithWeatherData(data, marker, lat, lon);
-         } catch (error) {
-            console.error(error);
+         } catch (err) {
             showError("서버 요청 중 오류가 발생했습니다.");
          } finally {
             isRequesting = false;
          }
       }
 
-      // 에러 발생 시 UI 업데이트
+      // 에러 메시지 표시
       function showError(msg) {
-         const infoEl = document.getElementById("info");
-         infoEl.innerText = msg;
-         const imgEl = document.getElementById("weather-img");
-         imgEl.src = "";
-         imgEl.alt = "";
+         document.getElementById("info").innerText = msg;
+         document.getElementById("weather-img").src = "";
          document.getElementById("forecast-list").innerHTML = "";
       }
 
-      // API에서 받은 데이터로 UI 업데이트
+      // 날씨 정보로 UI 업데이트
       function updateUIWithWeatherData(data, marker, lat, lon) {
          marker.setPosition({ lat, lng: lon });
 
-         // 서버에서 받은 데이터 구조 분해 할당
          const { korean_address: address, current_weather, forecast, user_weather_image: userImg } = data;
 
-         // 위치 및 현재 날씨 정보 표시
          document.getElementById("info").innerHTML = `
-      <p class="text-2xl font-bold mb-2 select-text">📍 위치: ${address}</p>
-      <p class="mb-1">🌡️ 온도: <span class="font-extrabold">${current_weather.temp}°C</span> (체감: ${current_weather.feels_like}°C)</p>
-      <p class="mb-1">⛅ 날씨: ${current_weather.description}</p>
-      <p class="mb-1">💧 습도: <span class="font-extrabold">${current_weather.humidity}%</span></p>
-   `;
-         // 경고 메시지 표시 (한국 외 지역 선택 시)
+            <p class="text-2xl font-bold mb-2 select-text">📍 위치: ${address}</p>
+            <p class="mb-1">🌡️ 온도: <span class="font-extrabold">${current_weather.temp}°C</span> (체감: ${current_weather.feels_like}°C)</p>
+            <p class="mb-1">⛅ 날씨: ${current_weather.description}</p>
+            <p class="mb-1">💧 습도: <span class="font-extrabold">${current_weather.humidity}%</span></p>
+         `;
+
+         // 한국 이외 지역 경고 표시
          const warningEl = document.getElementById("warning-message");
-         if (!data.korean_address.includes("대한민국") && !data.korean_address.includes("한국")) {
+         if (!address.includes("대한민국") && !address.includes("한국")) {
             warningEl.classList.remove("hidden");
          } else {
             warningEl.classList.add("hidden");
          }
 
-         // 사용자 업로드 이미지 있으면 표시, 없으면 기본 아이콘 표시
+         // 사용자 이미지 또는 기본 아이콘 표시
          const imgEl = document.getElementById("weather-img");
          imgEl.src = userImg || `https://openweathermap.org/img/wn/${current_weather.icon}@4x.png`;
          imgEl.alt = current_weather.description;
-         imgEl.title = current_weather.description;
 
-         // 예보 리스트 초기화
+         // 예보 날짜별 그룹화 및 표시
          const forecastList = document.getElementById("forecast-list");
          forecastList.innerHTML = "";
 
-         if (Array.isArray(forecast) && forecast.length > 0) {
-            // 날짜별 그룹으로 묶기
-            const grouped = {};
-            forecast.forEach(item => {
-               const date = item.date; // "YYYY-MM-DD"
-               if (!grouped[date]) grouped[date] = [];
-               grouped[date].push(item);
+         const grouped = {};
+         forecast.forEach(item => {
+            const date = item.date;
+            if (!grouped[date]) grouped[date] = [];
+            grouped[date].push(item);
+         });
+
+         const today = new Date();
+         today.setHours(0, 0, 0, 0);
+
+         const dates = Object.keys(grouped)
+            .sort((a, b) => new Date(a) - new Date(b))
+            .filter(d => new Date(d) >= today)
+            .slice(0, 4);
+
+         dates.forEach(date => {
+            const [y, m, d] = date.split('-');
+            const dayLabel = `${parseInt(m)}월 ${parseInt(d)}일`;
+
+            const dayContainer = document.createElement("div");
+            dayContainer.className = "bg-blue-100 rounded-xl p-4 shadow-lg mb-4 w-full text-blue-900";
+
+            const header = document.createElement("h4");
+            header.className = "font-bold text-lg mb-3";
+            header.textContent = dayLabel;
+            dayContainer.appendChild(header);
+
+            const timeContainer = document.createElement("div");
+            timeContainer.className = "inline-flex gap-3 overflow-x-auto whitespace-nowrap";
+
+            grouped[date].forEach(item => {
+               const card = document.createElement("div");
+               card.className = "bg-white rounded-xl p-3 text-center shadow flex-shrink-0 w-24";
+
+               const icon = item.icon || '01d';
+               const desc = item.description || '정보 없음';
+
+               card.innerHTML = `
+                  <p class="font-semibold text-sm mb-1">${item.time}</p>
+                  <img src="https://openweathermap.org/img/wn/${icon}@2x.png"
+                       class="mx-auto mb-1" alt="${desc}" title="${desc}"
+                       style="width:48px; height:48px;" loading="lazy" decoding="async" />
+                  <p class="text-sm">🌡 ${item.temp ?? '-'}°C</p>
+                  <p class="text-sm">💧 ${item.humidity ?? '-'}%</p>
+                  <p class="text-xs capitalize truncate" title="${desc}">${desc}</p>
+               `;
+               timeContainer.appendChild(card);
             });
 
-            // 날짜 정렬 후 오늘 이후 날짜만 필터링, 3일치만 선택
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const dates = Object.keys(grouped)
-               .sort((a, b) => new Date(a) - new Date(b))
-               .filter(d => new Date(d) >= new Date(today.toDateString()))
-               .slice(0, 4);
-
-            dates.forEach(date => {
-               const [year, month, day] = date.split('-');
-               const dayLabel = `${parseInt(month)}월 ${parseInt(day)}일`;
-
-               const dayContainer = document.createElement("div");
-               dayContainer.className = "bg-blue-100 rounded-xl p-4 shadow-lg mb-4 w-full text-blue-900";
-
-               const header = document.createElement("h4");
-               header.className = "font-bold text-lg mb-3";
-               header.textContent = dayLabel;
-               dayContainer.appendChild(header);
-
-               const timeContainer = document.createElement("div");
-               timeContainer.className = "inline-flex gap-3 overflow-x-auto whitespace-nowrap";
-
-               grouped[date].forEach(item => {
-                  const card = document.createElement("div");
-                  card.className = "bg-white rounded-xl p-3 text-center shadow flex-shrink-0 w-24";
-
-                  const icon = item.icon || '01d';
-                  const desc = item.description || '정보 없음';
-
-                  card.innerHTML = `
-            <p class="font-semibold text-sm mb-1">${item.time}</p>
-            <img src="https://openweathermap.org/img/wn/${icon}@2x.png"
-               class="mx-auto mb-1" alt="${desc}" title="${desc}"
-               style="width:48px; height:48px;" loading="lazy" decoding="async" />
-            <p class="text-sm">🌡 ${item.temp !== null ? item.temp : '-'}°C</p>
-            <p class="text-sm">💧 ${item.humidity !== null ? item.humidity : '-'}%</p>
-            <p class="text-xs capitalize truncate" title="${desc}">${desc}</p>
-         `;
-                  timeContainer.appendChild(card);
-               });
-
-               dayContainer.appendChild(timeContainer);
-               forecastList.appendChild(dayContainer);
-            });
-         }
+            dayContainer.appendChild(timeContainer);
+            forecastList.appendChild(dayContainer);
+         });
       }
 
-
+      // 지도 스타일 (POI 등 제거)
       const simpleMapStyle = [
          { featureType: "poi", stylers: [{ visibility: "off" }] },
          { featureType: "transit", stylers: [{ visibility: "off" }] },
@@ -290,6 +271,7 @@
          { featureType: "administrative", elementType: "labels.text.fill", stylers: [{ color: "#444444" }] }
       ];
 
+      // 현재 위치 탐색 및 날씨 요청
       function fetchCurrentLocationAndWeather(marker, map) {
          if (!navigator.geolocation) {
             alert("현재 위치를 사용할 수 없습니다.");
@@ -305,41 +287,31 @@
                fetchWeatherAndUpdate(lat, lon, marker);
             },
             (err) => {
-               console.warn("현재 위치 탐색 실패:", err);
                alert("현재 위치를 불러올 수 없습니다.");
             },
-            {
-               enableHighAccuracy: false,
-               timeout: 3000,
-               maximumAge: 1000
-            }
+            { enableHighAccuracy: false, timeout: 3000, maximumAge: 1000 }
          );
       }
 
+      // 지도 초기화 및 이벤트 설정
       function initMap() {
          const defaultLat = 37.4940906854463;
          const defaultLng = 126.917031672483;
 
          const geocoder = new google.maps.Geocoder();
-
          const map = new google.maps.Map(document.getElementById("map"), {
             center: { lat: defaultLat, lng: defaultLng },
             zoom: 10,
             gestureHandling: "greedy",
             styles: simpleMapStyle,
-
-            // UI 컨트롤 제거 옵션 추가
-            disableDefaultUI: true,       // 기본 UI 전체 제거
-            zoomControl: false,           // 확대/축소 버튼 제거
-            mapTypeControl: true,        // 지도/위성 전환 버튼 제거
-            streetViewControl: false,     // 로드뷰(Pegman) 제거
-            fullscreenControl: true      // 전체화면 버튼 제거
+            disableDefaultUI: true,
+            zoomControl: false,
+            mapTypeControl: true,
+            streetViewControl: false,
+            fullscreenControl: true
          });
 
-         const marker = new google.maps.Marker({
-            map,
-            position: { lat: defaultLat, lng: defaultLng },
-         });
+         const marker = new google.maps.Marker({ map, position: { lat: defaultLat, lng: defaultLng } });
 
          fetchWeatherAndUpdate(defaultLat, defaultLng, marker);
          fetchCurrentLocationAndWeather(marker, map);
@@ -349,16 +321,13 @@
          });
 
          const addressInput = document.getElementById('address-input');
-
          let searchDebounceTimer = null;
+
          document.getElementById("search-btn").addEventListener("click", () => {
             if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
             searchDebounceTimer = setTimeout(() => {
                const addr = addressInput.value.trim();
-               if (!addr) {
-                  alert('주소를 입력하세요.');
-                  return;
-               }
+               if (!addr) return alert('주소를 입력하세요.');
                geocoder.geocode({ address: addr }, (results, status) => {
                   if (status === 'OK' && results[0]) {
                      const location = results[0].geometry.location;
@@ -386,10 +355,11 @@
       }
    </script>
 
-   <!-- 구글 지도 API 스크립트 -->
+   <!-- 구글 지도 API 키 삽입 -->
    <script async defer
       src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBngLYp-oC51BCoXTy1PhUaj9Hm239t_98&callback=initMap">
       </script>
+
 </body>
 
 </html>

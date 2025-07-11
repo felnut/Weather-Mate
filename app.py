@@ -11,6 +11,9 @@ from PIL import Image
 import io
 import subprocess
 import time
+from dotenv import load_dotenv
+
+load_dotenv()  
 
 app = Flask(__name__)
 Compress(app)  # 응답 데이터 압축 활성화 (속도 향상)
@@ -233,8 +236,8 @@ def weather_view():
       # 캐시된 데이터가 유효하면 재사용
       return jsonify(cached[1])
 
-   OPENWEATHER_API_KEY = '947036a512b635c1c71e8918b3ef8267'
-   MAPS_API_KEY = 'AIzaSyBngLYp-oC51BCoXTy1PhUaj9Hm239t_98'
+   OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
+   MAPS_API_KEY = os.getenv('MAPS_API_KEY')  
 
    urls = {
       'weather': f'https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric',
