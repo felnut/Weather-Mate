@@ -93,6 +93,13 @@
       </button>
    </div>
 
+   <!-- 경고 메시지 (한국 이외 지역 선택 시 참고) -->
+   <div id="warning-message"
+      class="bg-yellow-300 text-yellow-900 text-center py-2 text-sm font-semibold rounded-xl mt-6 max-w-5xl w-full select-none hidden">
+      ⚠️ 북한이나 해외는 주소 정보가 부분적으로 영어가 표시될 수 있습니다.<br />
+      다만, 날씨 정보는 정확하게 제공됩니다.
+   </div>
+
    <!-- 날씨 정보 및 이미지 영역 -->
    <section id="info-container"
       class="mt-8 max-w-5xl w-full bg-white rounded-3xl shadow-2xl p-8 flex flex-col md:flex-row md:items-center gap-8 text-blue-900 border border-blue-200">
@@ -200,6 +207,13 @@
       <p class="mb-1">⛅ 날씨: ${current_weather.description}</p>
       <p class="mb-1">💧 습도: <span class="font-extrabold">${current_weather.humidity}%</span></p>
    `;
+         // 경고 메시지 표시 (한국 외 지역 선택 시)
+         const warningEl = document.getElementById("warning-message");
+         if (!data.korean_address.includes("대한민국") && !data.korean_address.includes("한국")) {
+            warningEl.classList.remove("hidden");
+         } else {
+            warningEl.classList.add("hidden");
+         }
 
          // 사용자 업로드 이미지 있으면 표시, 없으면 기본 아이콘 표시
          const imgEl = document.getElementById("weather-img");
