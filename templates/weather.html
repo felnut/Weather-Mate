@@ -4,7 +4,7 @@
 <head>
    <meta charset="UTF-8" />
    <title>날씨 친구</title>
-   <link rel="shortcut icon" type="image/x-icon" href="../icons/WeatherMate.ico">
+   <link rel="shortcut icon" href="{{ url_for('static', filename='icons/WeatherMateHaveWord.ico') }}">
    <meta name="viewport" content="width=device-width, initial-scale=1" />
    <!-- TailwindCSS 불러오기 -->
    <script src="https://cdn.tailwindcss.com"></script>
@@ -26,6 +26,35 @@
          background: #888;
          border-radius: 4px;
       }
+
+      #search-btn {
+         transition: background-color 0.3s ease, box-shadow 0.3s ease;
+         box-shadow:
+            0 4px 6px -1px rgba(59, 130, 246, 0.5),
+            0 2px 4px -1px rgba(37, 99, 235, 0.4);
+      }
+
+      #search-btn:hover {
+         background: linear-gradient(90deg, #2563eb, #1e40af);
+         box-shadow:
+            0 8px 12px -2px rgba(37, 99, 235, 0.6),
+            0 4px 6px -2px rgba(30, 64, 175, 0.5);
+      }
+
+      /* 업로드 페이지 이동 버튼 hover 스타일 */
+      #go-upload-btn {
+         transition: background-color 0.3s ease, box-shadow 0.3s ease;
+         box-shadow:
+            0 4px 6px -1px rgba(34, 197, 94, 0.5),
+            0 2px 4px -1px rgba(22, 163, 74, 0.4);
+      }
+
+      #go-upload-btn:hover {
+         background: linear-gradient(90deg, #16a34a, #15803d);
+         box-shadow:
+            0 8px 12px -2px rgba(22, 163, 74, 0.6),
+            0 4px 6px -2px rgba(21, 128, 61, 0.5);
+      }
    </style>
 </head>
 
@@ -33,6 +62,8 @@
    class="bg-gradient-to-tr from-blue-50 via-white to-blue-100 font-sans min-h-screen flex flex-col items-center p-6 text-gray-800">
 
    <!-- 페이지 제목 -->
+   <img src="../static/icons/WeatherMateNoWord.ico" alt="날씨 친구 로고" class="w-48 h-35 mb-4 drop-shadow-lg" loading="lazy"
+      decoding="async" />
    <h2 class="text-4xl font-extrabold mb-2 text-center text-blue-900 drop-shadow-md">날씨 친구</h2>
    <h3 class="text-lg mb-6 text-center text-blue-700 max-w-xl">지도에서 위치를 클릭하거나 주소를 입력하여<br />날씨 정보를 확인하세요!</h3>
 
@@ -44,25 +75,25 @@
    <!-- 주소 입력 및 검색 버튼 -->
    <div class="mt-6 max-w-5xl w-full flex gap-3">
       <input type="text" id="address-input" placeholder="주소를 입력하세요"
-         class="flex-grow rounded-lg border border-blue-300 px-4 py-3 text-blue-900 placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-      <button id="search-btn"
-         class="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-lg font-semibold shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300 transition">
-         검색
+         class="flex-grow rounded-xl border border-blue-300 px-5 py-3 text-blue-900 placeholder-blue-400 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-400 transition" />
+      <button id="search-btn" type="button"
+         class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300 transition">
+         🔍 검색
       </button>
    </div>
 
    <!-- 업로드 페이지 이동 버튼 -->
    <div class="mt-6 max-w-5xl w-full flex justify-end items-center gap-2 text-blue-900">
-      <span class="text-2xl select-none">👉</span>
-      <button id="go-upload-btn"
-         class="hover:underline focus:outline-none focus:ring-2 focus:ring-blue-400 rounded font-semibold transition">
-         이미지 업로드 페이지로 이동
+      <button id="go-upload-btn" type="button"
+         class="inline-flex items-center justify-center bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold px-5 py-3 rounded-xl shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300 transition select-none">
+         ⬆️ 이미지 업로드 페이지로 이동
       </button>
    </div>
 
+
    <!-- 날씨 정보 컨테이너 -->
    <section id="info-container"
-      class="mt-8 max-w-5xl w-full bg-white rounded-xl shadow-2xl p-8 flex flex-col md:flex-row md:items-center gap-8 text-blue-900">
+      class="mt-8 max-w-5xl w-full bg-white rounded-3xl shadow-2xl p-8 flex flex-col md:flex-row md:items-center gap-8 text-blue-900 border border-blue-200">
 
       <!-- 텍스트 정보 영역 -->
       <div id="info" class="flex-1 text-lg leading-relaxed select-text text-center md:text-left">
@@ -147,7 +178,7 @@
             if (Array.isArray(forecast)) {
                forecast.forEach(item => {
                   const card = document.createElement("div");
-                  card.className = "bg-blue-100 rounded-lg p-4 text-center shadow-md flex-shrink-0 w-32 text-blue-900";
+                  card.className = "bg-blue-100 rounded-xl p-4 text-center shadow-lg flex-shrink-0 w-32 text-blue-900";
 
                   const icon = item.icon || '01d';
                   const desc = item.description || '정보 없음';
@@ -199,14 +230,15 @@
 
          // 주소 검색 버튼 클릭 이벤트
          const addressInput = document.getElementById('address-input');
-         const searchBtn = document.getElementById('search-btn');
-         searchBtn.addEventListener('click', () => {
+         document.getElementById("search-btn").addEventListener("click", () => {
+            const addressInput = document.getElementById('address-input');
             const addr = addressInput.value.trim();
             if (!addr) {
                alert('주소를 입력하세요.');
                return;
             }
 
+            const geocoder = new google.maps.Geocoder();
             geocoder.geocode({ address: addr }, (results, status) => {
                if (status === 'OK' && results[0]) {
                   const location = results[0].geometry.location;
@@ -220,7 +252,6 @@
             });
          });
 
-         // 이미지 업로드 페이지 이동 버튼 이벤트 연결
          document.getElementById("go-upload-btn").addEventListener("click", () => {
             window.location.href = "/upload";
          });
