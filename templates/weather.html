@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+   <meta charset="UTF-8" />
+   <title>날씨 친구</title>
+   <meta name="viewport" content="width=device-width, initial-scale=1" />
+   <!-- TailwindCSS 불러오기 -->
+   <script src="https://cdn.tailwindcss.com"></script>
+   <style>
+      /* 가로 스크롤 항상 보이기 + iOS 부드러운 스크롤 */
+      #forecast-container {
+         overflow-x: auto !important;
+         -webkit-overflow-scrolling: touch;
+      }
+
+      /* 웹킷 브라우저 스크롤바 꾸미기 */
+      #forecast-container::-webkit-scrollbar {
+         height: 8px;
+         background: #444;
+         border-radius: 4px;
+      }
+
+      #forecast-container::-webkit-scrollbar-thumb {
+         background: #888;
+         border-radius: 4px;
+      }
+   </style>
+</head>
+
+<body
+   class="bg-gradient-to-tr from-blue-50 via-white to-blue-100 font-sans min-h-screen flex flex-col items-center p-6 text-gray-800">
+
+   <!-- 페이지 제목 -->
+   <h2 class="text-4xl font-extrabold mb-2 text-center text-blue-900 drop-shadow-md">날씨 친구</h2>
+   <h3 class="text-lg mb-6 text-center text-blue-700 max-w-xl">지도에서 위치를 클릭하거나 주소를 입력하여<br />날씨 정보를 확인하세요!</h3>
+
+   <!-- 지도 컨테이너 -->
+   <div id="map"
+      class="w-full max-w-5xl h-96 rounded-xl shadow-xl border border-blue-300 transition-shadow hover:shadow-2xl"
+      role="region" aria-label="날씨 지도"></div>
+
+   <!-- 주소 입력 및 검색 버튼 -->
+   <div class="mt-6 max-w-5xl w-full flex gap-3">
+      <input type="text" id="address-input" placeholder="주소를 입력하세요"
+         class="flex-grow rounded-lg border border-blue-300 px-4 py-3 text-blue-900 placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
+      <button id="search-btn"
+         class="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-lg font-semibold shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300 transition">
+         검색
+      </button>
+   </div>
+
+   <!-- 업로드 페이지 이동 버튼 -->
+   <div class="mt-6 max-w-5xl w-full flex justify-end items-center gap-2 text-blue-900">
+      <span class="text-2xl select-none">👉</span>
+      <button id="go-upload-btn"
+         class="hover:underline focus:outline-none focus:ring-2 focus:ring-blue-400 rounded font-semibold transition">
+         이미지 업로드 페이지로 이동
+      </button>
+   </div>
+
+   <!-- 날씨 정보 컨테이너 -->
+   <section id="info-container"
+      class="mt-8 max-w-5xl w-full bg-white rounded-xl shadow-2xl p-8 flex flex-col md:flex-row md:items-center gap-8 text-blue-900">
+
+      <!-- 텍스트 정보 영역 -->
+      <div id="info" class="flex-1 text-lg leading-relaxed select-text text-center md:text-left">
+         날씨 정보 없음
+      </div>
+
+      <!-- 날씨 이미지 -->
+      <img id="weather-img" src="" alt="날씨 이미지"
+         class="w-40 h-40 rounded-xl object-cover shadow-inner self-center mx-auto md:mx-0" loading="lazy"
+         decoding="async" />
+
+   </section>
+
+   <!-- 시간별 예보 스크롤 컨테이너 -->
+   <section id="forecast-container"
+      class="mt-6 max-w-5xl w-full bg-white rounded-xl p-4 shadow-inner border border-blue-200 whitespace-nowrap overflow-x-auto">
+
+      <div id="forecast-list" class="inline-flex gap-3"></div>
+   </section>
+
+   <script>
+      /**
+       * 에러 메시지를 표시하고 날씨 정보, 이미지, 예보를 초기화
+       * @param {string} msg - 사용자에게 보여줄 에러 메시지
+       */
+      function showError(msg) {
+         const infoEl = document.getElementById("info");
+         infoEl.innerText = msg;
+         const imgEl = document.getElementById("weather-img");
+         imgEl.src = "";
+         imgEl.alt = "";
+         document.getElementById("forecast-list").innerHTML = "";
+      }
+
+      /**
+       * 위도, 경도 좌표를 받아 서버에서 날씨 정보 조회 후 UI 갱신
+       * @param {number} lat - 위도
+       * @param {number} lon - 경도
+       * @param {google.maps.Marker} marker - 지도 마커 객체
+       */
+      async function fetchWeatherAndUpdate(lat, lon, marker) {
+         // 마커 위치 이동
+         marker.setPosition({ lat, lng: lon });
+
+         try {
+            const response = await fetch("/weather", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ lat, lon }),
+            });
+
+            if (!response.ok) throw new Error(`서버 응답 오류: ${response.status}`);
+
+            const data = await response.json();
+
+            if (data.cod !== 200) {
+               showError("날씨 정보를 불러오지 못했습니다.");
+               return;
+            }
+
+            // 응답 데이터 분해
+            const { korean_address: address, current_weather, forecast, user_weather_image: userImg } = data;
+
+            // 위치 및 날씨 텍스트 갱신 (HTML 템플릿으로 깔끔하게 표시)
+            document.getElementById("info").innerHTML = `
+               <p class="text-2xl font-bold mb-2 select-text">📍 위치: ${address}</p>
+               <p class="mb-1">🌡️ 온도: <span class="font-extrabold">${current_weather.temp}°C</span> (체감: ${current_weather.feels_like}°C)</p>
+               <p class="mb-1">⛅ 날씨: ${current_weather.description}</p>
+               <p class="mb-1">💧 습도: <span class="font-extrabold">${current_weather.humidity}%</span></p>
+            `;
+
+            // 날씨 이미지 - 사용자 업로드 이미지 우선 사용
+            const imgEl = document.getElementById("weather-img");
+            imgEl.src = userImg || `https://openweathermap.org/img/wn/${current_weather.icon}@4x.png`;
+            imgEl.alt = current_weather.description;
+            imgEl.title = current_weather.description;
+
+            // 예보 목록 초기화 및 갱신
+            const forecastList = document.getElementById("forecast-list");
+            forecastList.innerHTML = "";
+
+            if (Array.isArray(forecast)) {
+               forecast.forEach(item => {
+                  const card = document.createElement("div");
+                  card.className = "bg-blue-100 rounded-lg p-4 text-center shadow-md flex-shrink-0 w-32 text-blue-900";
+
+                  const icon = item.icon || '01d';
+                  const desc = item.description || '정보 없음';
+
+                  card.innerHTML = `
+                     <p class="font-semibold text-sm mb-1">${item.time}</p>
+                     <img src="https://openweathermap.org/img/wn/${icon}@2x.png" 
+                        class="mx-auto mb-2" alt="${desc}" title="${desc}" 
+                        style="width:56px; height:56px;" loading="lazy" decoding="async" />
+                     <p class="text-sm">🌡 ${item.temp !== null ? item.temp : '-'}°C</p>
+                     <p class="text-sm">💧 ${item.humidity !== null ? item.humidity : '-'}%</p>
+                     <p class="text-xs capitalize truncate" title="${desc}">${desc}</p>
+                  `;
+                  forecastList.appendChild(card);
+               });
+            }
+         } catch (error) {
+            console.error(error);
+            showError("서버 요청 중 오류가 발생했습니다.");
+         }
+      }
+
+      /**
+       * 구글 지도 초기화 및 이벤트 설정
+       */
+      function initMap() {
+         const defaultLat = 37.4940906854463;
+         const defaultLng = 126.917031672483;
+
+         const geocoder = new google.maps.Geocoder();
+         const map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: defaultLat, lng: defaultLng },
+            zoom: 10,
+            gestureHandling: "greedy",
+         });
+
+         const marker = new google.maps.Marker({
+            map,
+            position: { lat: defaultLat, lng: defaultLng },
+         });
+
+         // 페이지 로드 시 기본 위치 날씨 표시
+         fetchWeatherAndUpdate(defaultLat, defaultLng, marker);
+
+         // 지도 클릭 시 마커 위치 변경 및 날씨 갱신
+         map.addListener("click", (event) => {
+            fetchWeatherAndUpdate(event.latLng.lat(), event.latLng.lng(), marker);
+         });
+
+         // 주소 검색 버튼 클릭 이벤트
+         const addressInput = document.getElementById('address-input');
+         const searchBtn = document.getElementById('search-btn');
+         searchBtn.addEventListener('click', () => {
+            const addr = addressInput.value.trim();
+            if (!addr) {
+               alert('주소를 입력하세요.');
+               return;
+            }
+
+            geocoder.geocode({ address: addr }, (results, status) => {
+               if (status === 'OK' && results[0]) {
+                  const location = results[0].geometry.location;
+                  map.setCenter(location);
+                  map.setZoom(14);
+                  marker.setPosition(location);
+                  fetchWeatherAndUpdate(location.lat(), location.lng(), marker);
+               } else {
+                  alert('주소를 찾을 수 없습니다.');
+               }
+            });
+         });
+
+         // 이미지 업로드 페이지 이동 버튼 이벤트 연결
+         document.getElementById("go-upload-btn").addEventListener("click", () => {
+            window.location.href = "/upload";
+         });
+      }
+   </script>
+
+   <!-- 구글 지도 API 비동기 로드 (키를 본인 키로 변경하세요) -->
+   <script async defer
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBngLYp-oC51BCoXTy1PhUaj9Hm239t_98&callback=initMap">
+      </script>
+</body>
+
+</html>
