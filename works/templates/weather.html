@@ -231,14 +231,12 @@
          // 주소 검색 버튼 클릭 이벤트
          const addressInput = document.getElementById('address-input');
          document.getElementById("search-btn").addEventListener("click", () => {
-            const addressInput = document.getElementById('address-input');
             const addr = addressInput.value.trim();
             if (!addr) {
                alert('주소를 입력하세요.');
                return;
             }
 
-            const geocoder = new google.maps.Geocoder();
             geocoder.geocode({ address: addr }, (results, status) => {
                if (status === 'OK' && results[0]) {
                   const location = results[0].geometry.location;
@@ -252,6 +250,15 @@
             });
          });
 
+         // 주소 입력창에서 엔터키로 검색 실행
+         addressInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.keyCode === 13) {
+               event.preventDefault();
+               document.getElementById('search-btn').click();
+            }
+         });
+
+         // 업로드 페이지 이동 버튼 이벤트
          document.getElementById("go-upload-btn").addEventListener("click", () => {
             window.location.href = "/upload";
          });

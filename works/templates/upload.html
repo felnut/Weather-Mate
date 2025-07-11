@@ -6,7 +6,7 @@
    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
    <title>날씨 이미지 업로드</title>
    <link rel="shortcut icon" href="{{ url_for('static', filename='icons/WeatherMateHaveWord.ico') }}">
-   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600&display=swap" rel="stylesheet" />
+   <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
    <script src="https://cdn.tailwindcss.com"></script>
    <style>
       /* 기본 폰트 및 배경 그라데이션 설정 */
@@ -61,6 +61,18 @@
       /* 미리보기 이미지가 보일 때 opacity 1로 변경 */
       #preview-image.visible {
          opacity: 1;
+      }
+
+      /* 파일명 말줄임표 처리 */
+      #file-name {
+         max-width: 12rem;
+         overflow: hidden;
+         white-space: nowrap;
+         text-overflow: ellipsis;
+         color: #6b7280;
+         /* tailwind text-gray-500 */
+         font-style: italic;
+         user-select: text;
       }
 
       .btn-blue-shadow {
@@ -131,9 +143,9 @@
          </div>
 
          <!-- 2. 파일 선택 및 URL 입력 그룹 (반응형 가로/세로 배열) -->
-         <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-            <!-- 2-1. 파일 선택 -->
-            <div class="flex-shrink-0 flex items-center gap-3 w-full sm:w-auto">
+         <!-- 2-1. 파일 선택 -->
+         <div class="flex flex-col gap-2 w-full sm:w-auto">
+            <div class="flex items-center gap-3">
                <!-- 파일 input 숨김 처리 -->
                <input type="file" id="image-input" accept=".png,.jpg,.jpeg,.gif,.svg,.webp" class="hidden" />
 
@@ -144,14 +156,12 @@
                </label>
 
                <!-- 파일 이름 표시 -->
-               <span id="file-name"
-                  class="text-gray-500 italic select-text break-words truncate max-w-[8rem] sm:max-w-[12rem]">
-               </span>
+               <span id="file-name" class="text-gray-500 italic select-text break-words truncate max-w-[12rem]"></span>
             </div>
 
             <!-- 2-2. 이미지 URL 입력 -->
-            <div class="flex-1 min-w-0">
-               <label for="image-url-input" class="block mb-2 font-semibold text-gray-700">이미지 URL 입력:</label>
+            <div class="mt-2">
+               <label for="image-url-input" class="block mb-1 font-semibold text-gray-700">이미지 URL 입력:</label>
                <input type="url" id="image-url-input" placeholder="https://example.com/image.png" autocomplete="off"
                   class="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-800 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 transition" />
             </div>
@@ -177,7 +187,7 @@
       </form>
 
       <!-- 4. 업로드 상태 메시지 표시 영역 -->
-      <div id="upload-message" class="mt-2 text-center text-sm font-semibold hidden" role="alert" aria-live="polite">
+      <div id="upload-message" class="mt-2 text-center text-xl font-semibold hidden" role="alert" aria-live="polite">
       </div>
 
       <!-- 5. 이미지 미리보기 영역 -->
@@ -220,6 +230,9 @@
          let uploadedWeather = null;
          let uploadedImageUrl = null;
 
+         // 업로드 중복 방지 플래그
+         let isUploading = false;
+
          // 허용하는 이미지 확장자 정규식
          const validExtensions = /\.(png|jpg|jpeg|gif|svg|webp)$/i;
 
@@ -244,16 +257,24 @@
           */
          function showMessage(text, type = 'info') {
             uploadMessage.textContent = text;
-            uploadMessage.className = 'mt-2 text-center text-sm font-semibold';
+            uploadMessage.className = 'mt-2 text-center text-xl font-semibold';
             uploadMessage.classList.remove('hidden');
             uploadMessage.setAttribute('role', 'alert');
             uploadMessage.setAttribute('aria-live', 'polite');
-            uploadMessage.classList.add({
+
+            // 색상 클래스 설정
+            const colorClasses = {
                success: 'text-green-600',
                error: 'text-red-600',
                warn: 'text-yellow-600',
                info: 'text-gray-800'
-            }[type] || 'text-gray-800');
+            };
+
+            // 기존 텍스트 색상 제거
+            uploadMessage.classList.remove('text-green-600', 'text-red-600', 'text-yellow-600', 'text-gray-800');
+
+            // 해당 타입 색상 클래스 추가
+            uploadMessage.classList.add(colorClasses[type] || 'text-gray-800');
          }
 
          /**
@@ -360,51 +381,58 @@
          uploadForm.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const weather = weatherSelect.value?.trim();
-            const file = imageInput.files[0];
-            const url = imageUrlInput.value.trim();
+            if (isUploading) return; // 업로드 중복 방지
 
-            if (!weather) {
-               alert("항목을 선택해주세요.");
-               return;
-            }
-
-            if (weather !== "default" && !file && !url) {
-               alert("이미지 파일 또는 URL을 입력해 주세요.");
-               return;
-            }
-
-            if (file && !isValidFileExtension(file.name)) {
-               alert("사진에 오류가 있습니다. 가능한 확장자는 png, jpg, jpeg, gif, svg, webp 입니다.");
-               return;
-            }
-
-            if (url && !isValidImageUrl(url)) {
-               alert("지원되는 이미지 URL이 아닙니다.");
-               return;
-            }
-
-            if (weather !== "default" && uploadedWeather === weather) {
-               if (!confirm("이미 업로드된 사진이 있습니다. 덮어쓰시겠습니까?")) {
-                  return;
-               }
-            }
-
-            // FormData에 데이터 추가
-            const formData = new FormData();
-            formData.append("weather", weather);
-            if (file) formData.append("image", file);
-            else if (url) formData.append("image_url", url);
+            isUploading = true;
+            const submitBtn = uploadForm.querySelector("button[type='submit']");
+            submitBtn.disabled = true;
+            submitBtn.textContent = "⬆️ 업로드 중...";
 
             try {
+               const weather = weatherSelect.value?.trim();
+               const file = imageInput.files[0];
+               const url = imageUrlInput.value.trim();
+
+               if (!weather) {
+                  alert("항목을 선택해주세요.");
+                  return;
+               }
+
+               if (weather !== "default" && !file && !url) {
+                  alert("이미지 파일 또는 URL을 입력해 주세요.");
+                  return;
+               }
+
+               if (file && !isValidFileExtension(file.name)) {
+                  alert("사진에 오류가 있습니다. 가능한 확장자는 png, jpg, jpeg, gif, svg, webp 입니다.");
+                  return;
+               }
+
+               if (url && !isValidImageUrl(url)) {
+                  alert("지원되는 이미지 URL이 아닙니다.");
+                  return;
+               }
+
+               if (weather !== "default" && uploadedWeather === weather) {
+                  if (!confirm("이미 업로드된 사진이 있습니다. 덮어쓰시겠습니까?")) {
+                     return;
+                  }
+               }
+
+               // FormData에 데이터 추가
+               const formData = new FormData();
+               formData.append("weather", weather);
+               if (file) formData.append("image", file);
+               else if (url) formData.append("image_url", url);
+
                // 서버에 POST 요청
                const res = await fetch("/upload-image", { method: "POST", body: formData });
                if (!res.ok) throw new Error(`서버 응답 오류: ${res.status}`);
 
                const result = await res.json();
+               console.log("서버 응답:", result);
 
                if (result.success) {
-                  // 성공 시 상태 변수와 메시지 업데이트
                   uploadedWeather = weather === "default" ? null : weather;
                   if (uploadedWeather) {
                      uploadedImageUrl = `/static/weather_images/${uploadedWeather}.png?v=${Date.now()}`;
@@ -420,41 +448,28 @@
                }
             } catch {
                showMessage("❌ 서버 오류가 발생했습니다.", "error");
+            } finally {
+               isUploading = false;
+               submitBtn.disabled = false;
+               submitBtn.textContent = "⬆️ 업로드";
             }
          });
 
-         // 초기화 버튼 클릭 시 서버에 초기화 요청 및 UI 리셋
-         resetBtn.addEventListener("click", async () => {
-            if (!confirm("모든 업로드된 이미지를 초기화 하시겠습니까?")) return;
-
-            try {
-               const res = await fetch("/reset-images", { method: "POST" });
-               if (!res.ok) throw new Error(`서버 응답 오류: ${res.status}`);
-
-               const result = await res.json();
-
-               if (result.success) {
-                  uploadedWeather = null;
-                  uploadedImageUrl = null;
-                  showMessage("✅ 모든 이미지가 초기화 되었습니다.", "success");
-                  previewContainer.classList.add("hidden");
-                  weatherSelect.value = "";
-                  imageInput.value = "";
-                  imageUrlInput.value = "";
-                  fileNameSpan.textContent = "";
-                  previewImage.src = "";
-                  previewImage.classList.remove("visible");
-               } else {
-                  showMessage("❌ 초기화를 실패하였습니다.", "error");
-               }
-            } catch {
-               showMessage("❌ 서버 오류가 발생했습니다.", "error");
-            }
+         // 초기화 버튼 클릭 시
+         resetBtn.addEventListener("click", () => {
+            imageInput.value = "";
+            imageUrlInput.value = "";
+            weatherSelect.value = "";
+            fileNameSpan.textContent = "";
+            previewContainer.classList.add("hidden");
+            clearMessage();
+            uploadedWeather = null;
+            uploadedImageUrl = null;
          });
 
-         // 날씨 정보 페이지 이동 버튼 클릭 시 이동
+         // 날씨 정보 페이지 이동 버튼 클릭 시 (임의 URL 변경 가능)
          goWeatherBtn.addEventListener("click", () => {
-            window.location.href = "/";
+            window.location.href = "/weather";
          });
       });
    </script>
