@@ -134,11 +134,8 @@ def map_weather_info(description: str, icon: str):
 # --- 멀티 API 호출 ---
 
 def fetch_url(url, results, key):
-   """
-   별도 스레드에서 API 호출 후 결과 저장
-   """
    try:
-      resp = requests.get(url)
+      resp = requests.get(url, timeout=5)  # 타임아웃 5초
       resp.raise_for_status()
       results[key] = resp.json()
    except Exception as e:
@@ -169,39 +166,22 @@ def remove_all_permissions(file_path: str):
 # --- 이미지 저장 및 최적화 ---
 
 def save_optimized_image(img_data: bytes, ext: str, weather: str):
-   """
-   업로드 또는 다운로드된 이미지 데이터 최적화하여 저장
-   기존 같은 날씨 이름 파일 있으면 삭제 후 저장
-   """
    try:
       ext_clean = ext.lstrip('.').lower()
-      filename = secure_filename(f"{weather}.{ext_clean}")
+      filename = secure_filename(f"{weather}.png")  # 항상 png로 통일 저장 (브라우저 호환성 좋음)
       file_path = os.path.join(UPLOAD_FOLDER, filename)
 
-      # 기존 같은 날씨 이름 이미지 있으면 삭제 (권한 열기 포함)
+      # 기존 삭제
       for fname in os.listdir(UPLOAD_FOLDER):
-         name, extension = os.path.splitext(fname)
-         if name == weather and extension.lower() in ALLOWED_EXTENSIONS:
+         if fname.startswith(weather + "."):
             existing_path = os.path.join(UPLOAD_FOLDER, fname)
-            allow_write_permission(existing_path)
             os.remove(existing_path)
 
-      if ext_clean == 'svg':
-         with open(file_path, 'wb') as f:
-            f.write(img_data)
-      else:
-         img = Image.open(io.BytesIO(img_data))
-         img.thumbnail((800, 800), Image.Resampling.LANCZOS)
-         if ext_clean == 'gif':
-            img.save(file_path, save_all=True, loop=0, optimize=True)
-         else:
-            save_format = 'JPEG' if ext_clean in ('jpg', 'jpeg') else ext_clean.upper()
-            img.save(file_path, save_format, quality=85, optimize=True, progressive=True)
+      img = Image.open(io.BytesIO(img_data))
+      img.thumbnail((800, 800), Image.Resampling.LANCZOS)
+      img.save(file_path, format='PNG', optimize=True)
 
-      # 권한 모두 제거 (읽기/쓰기 불가)
-      success, msg = remove_all_permissions(file_path)
-      if not success:
-         return False, msg
+      # 권한 설정 불필요 → 제거
 
       return True, None
    except Exception as e:
