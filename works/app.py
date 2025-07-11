@@ -59,9 +59,6 @@ def remove_detail_address(addr):
    return ' '.join(filtered)
 
 def get_address_detail(geo_data):
-   """
-   구글 지도 API 응답에서 주소 컴포넌트를 추출해 적절한 주소 문자열 반환
-   """
    if geo_data.get('status') != 'OK' or not geo_data.get('results'):
       return "주소 정보 없음"
 
@@ -84,8 +81,10 @@ def get_address_detail(geo_data):
       elif 'neighborhood' in types:
          addr['neighborhood'] = name
 
-   # 우선순위에 따라 주소 부분 합침
+   # admin2(시군구)를 무조건 포함
    parts = [addr['country'], addr['admin1'], addr['admin2']]
+
+   # sub_locality, neighborhood, locality 중 가장 상세한 주소를 추가
    if addr['sub_locality']:
       parts.append(addr['sub_locality'])
    elif addr['neighborhood']:
@@ -93,6 +92,7 @@ def get_address_detail(geo_data):
    elif addr['locality']:
       parts.append(addr['locality'])
 
+   # 빈 값은 제외하고 합침
    return ' '.join(filter(None, parts))
 
 # ---------------------------- [날씨 매핑 함수] ----------------------------
