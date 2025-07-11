@@ -168,10 +168,10 @@ def remove_all_permissions(file_path: str):
 def save_optimized_image(img_data: bytes, ext: str, weather: str):
    try:
       ext_clean = ext.lstrip('.').lower()
-      filename = secure_filename(f"{weather}.png")  # 항상 png로 통일 저장 (브라우저 호환성 좋음)
+      filename = secure_filename(f"{weather}.{ext_clean}")  # 확장자 유지
       file_path = os.path.join(UPLOAD_FOLDER, filename)
 
-      # 기존 삭제
+      # 기존 동일한 날씨 이름의 파일 삭제 (확장자 무관)
       for fname in os.listdir(UPLOAD_FOLDER):
          if fname.startswith(weather + "."):
             existing_path = os.path.join(UPLOAD_FOLDER, fname)
@@ -179,9 +179,23 @@ def save_optimized_image(img_data: bytes, ext: str, weather: str):
 
       img = Image.open(io.BytesIO(img_data))
       img.thumbnail((800, 800), Image.Resampling.LANCZOS)
-      img.save(file_path, format='PNG', optimize=True)
+      # 저장 형식은 확장자에 따라 지정 (예: PNG, JPEG, GIF 등)
+      format_map = {
+         'png': 'PNG',
+         'jpg': 'JPEG',
+         'jpeg': 'JPEG',
+         'gif': 'GIF',
+         'svg': 'SVG',  # PIL은 SVG 미지원, SVG는 바이너리 그대로 저장 필요 (참고)
+         'webp': 'WEBP'
+      }
+      save_format = format_map.get(ext_clean, 'PNG')
 
-      # 권한 설정 불필요 → 제거
+      # SVG 파일은 PIL로 저장 불가능 → 바이너리 그대로 저장 처리
+      if ext_clean == 'svg':
+         with open(file_path, 'wb') as f:
+            f.write(img_data)
+      else:
+         img.save(file_path, format=save_format, optimize=True)
 
       return True, None
    except Exception as e:
