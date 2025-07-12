@@ -104,8 +104,8 @@ def map_weather_info(description: str, icon: str):
    is_night = icon and 'n' in icon
 
    condition_map = {
-      "맑음": ["clear sky", "few clouds", "scattered clouds"],
-      "흐림": ["broken clouds", "overcast clouds"],
+      "맑음": ["clear sky"],
+      "흐림": ["few clouds", "scattered clouds", "broken clouds", "overcast clouds"],
       "비": ["light rain", "moderate rain", "heavy intensity rain", "rain"],
       "폭우": ["very heavy rain", "extreme rain"],
       "소나기": ["light intensity shower rain", "shower rain", "heavy intensity shower rain"],
@@ -324,6 +324,7 @@ def upload_image():
    weather = request.form.get('weather')
    if not weather:
       return jsonify({'success': False, 'message': '날씨 선택이 필요합니다.'})
+   weather = weather.lower()  # 소문자 통일
 
    file = request.files.get('image')
    image_url = request.form.get('image_url')
@@ -357,6 +358,7 @@ def upload_image():
          return jsonify({'success': False, 'message': f'이미지 다운로드 실패: {str(e)}'})
 
    return jsonify({'success': False, 'message': '이미지 파일 또는 URL이 필요합니다.'})
+
 
 @app.route('/reset-all-images', methods=['POST'])
 def reset_all_images():

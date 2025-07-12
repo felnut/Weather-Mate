@@ -31,6 +31,21 @@
          border-radius: 4px;
       }
 
+      /* 하루 예보를 담는 박스에만 적용 */
+      #forecast-list>div {
+         margin-top: 0.5rem;
+         margin-bottom: 0.5rem;
+         padding-top: 1rem;
+         padding-bottom: 1rem;
+         display: flex;
+         flex-direction: column;
+         justify-content: center;
+         box-sizing: border-box;
+         min-height: 150px;
+         height: auto;
+         overflow-y: visible;
+      }
+
       /* 검색 버튼 스타일 */
       #search-btn {
          transition: background-color 0.3s ease, box-shadow 0.3s ease;
@@ -104,18 +119,17 @@
 
    <!-- 현재 날씨 정보 및 이미지 -->
    <section id="info-container"
-      class="mt-8 max-w-5xl w-full bg-white rounded-3xl shadow-2xl p-8 flex flex-col md:flex-row md:items-center gap-8 text-blue-900 border border-blue-200">
+      class="mt-8 max-w-5xl w-full bg-blue-200 rounded-3xl shadow-2xl p-8 flex flex-col md:flex-row md:items-center gap-8 text-blue-900 border border-blue-200">
       <div id="info" class="flex-1 text-lg leading-relaxed select-text text-center md:text-left">
          날씨 정보 없음
       </div>
-      <img id="weather-img" src="" alt="날씨 이미지"
-         class="w-40 h-40 rounded-xl object-cover shadow-inner self-center mx-auto md:mx-0" loading="lazy"
-         decoding="async" />
+      <img id="weather-img" src="" alt="날씨 이미지" class="w-40 h-40 rounded-xl object-cover self-center mx-auto md:mx-0"
+         loading="lazy" decoding="async" />
    </section>
 
    <!-- 날씨 예보 리스트 -->
    <section id="forecast-container"
-      class="mt-6 max-w-5xl w-full bg-white rounded-xl p-4 shadow-inner border border-blue-200 whitespace-nowrap overflow-x-auto">
+      class="mt-6 max-w-5xl w-full bg-blue-300 rounded-xl p-3 shadow-inner border border-blue-200 whitespace-nowrap overflow-x-auto">
       <div id="forecast-list" class="inline-flex gap-3"></div>
    </section>
 
@@ -229,19 +243,21 @@
             const dayLabel = `${parseInt(m)}월 ${parseInt(d)}일`;
 
             const dayContainer = document.createElement("div");
-            dayContainer.className = "bg-blue-100 rounded-xl p-4 shadow-lg mb-4 w-full text-blue-900";
+            dayContainer.className = "bg-blue-200 rounded-xl p-4 shadow-lg mb-4 w-full text-blue-900 flex flex-col justify-between";
+            dayContainer.style.minHeight = "220px";
 
             const header = document.createElement("h4");
-            header.className = "font-bold text-lg mb-3";
+            header.className = "font-bold text-lg mb-4";
             header.textContent = dayLabel;
             dayContainer.appendChild(header);
 
             const timeContainer = document.createElement("div");
-            timeContainer.className = "inline-flex gap-3 overflow-x-auto whitespace-nowrap";
+            timeContainer.className = "inline-flex gap-3 overflow-x-auto whitespace-nowrap pt-1";
+
 
             grouped[date].forEach(item => {
                const card = document.createElement("div");
-               card.className = "bg-white rounded-xl p-3 text-center shadow flex-shrink-0 w-24";
+               card.className = "bg-blue-300 rounded-xl p-3 text-center flex-shrink-0 w-24 text-blue-900 border border-gray-300";
 
                const icon = item.icon || '01d';
                const desc = item.description || '정보 없음';
@@ -249,8 +265,8 @@
                card.innerHTML = `
                   <p class="font-semibold text-sm mb-1">${item.time}</p>
                   <img src="https://openweathermap.org/img/wn/${icon}@2x.png"
-                       class="mx-auto mb-1" alt="${desc}" title="${desc}"
-                       style="width:48px; height:48px;" loading="lazy" decoding="async" />
+                     class="mx-auto mb-1" alt="${desc}" title="${desc}"
+                     style="width:48px; height:48px;" loading="lazy" decoding="async" />
                   <p class="text-sm">🌡 ${item.temp ?? '-'}°C</p>
                   <p class="text-sm">💧 ${item.humidity ?? '-'}%</p>
                   <p class="text-xs capitalize truncate" title="${desc}">${desc}</p>

@@ -118,6 +118,12 @@
 </head>
 
 <body class="min-h-screen flex items-center justify-center p-4 sm:p-6">
+   <!-- ✅ 최상단 고정 메시지 영역 -->
+   <div id="upload-message"
+      class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-lg text-center text-lg font-semibold hidden transition-opacity duration-500 opacity-0"
+      role="alert" aria-live="polite">
+   </div>
+
    <!-- 메인 컨테이너: 배경 반투명, 블러 효과, 그림자 적용 -->
    <div
       class="w-full max-w-xl bg-white/90 backdrop-blur-sm rounded-3xl shadow-[0_20px_40px_rgba(0,0,0,0.1)] p-6 sm:p-8 flex flex-col gap-6">
@@ -190,10 +196,6 @@
          </div>
       </form>
 
-      <!-- 4. 업로드 상태 메시지 표시 영역 -->
-      <div id="upload-message" class="mt-2 text-center text-xl font-semibold hidden" role="alert" aria-live="polite">
-      </div>
-
       <!-- 5. 이미지 미리보기 영역 (초기에는 숨김) -->
       <div id="preview-container"
          class="mt-4 rounded-xl border border-gray-300 shadow-lg overflow-hidden hidden bg-white p-4 flex flex-col items-center">
@@ -230,6 +232,17 @@
          const goWeatherBtn = document.getElementById("go-weather-btn");
          const fileNameSpan = document.getElementById("file-name");
 
+         // 파일 선택 라벨 클릭 시 날씨 선택 여부 확인
+         const fileLabel = document.querySelector("label[for='image-input']");
+         fileLabel.addEventListener("click", (e) => {
+            if (!weatherSelect.value || weatherSelect.value === "") {
+               e.preventDefault(); // 파일 선택 막기
+               showMessage("⚠️ 먼저 날씨를 선택해주세요.", "warn");
+            } else {
+               clearMessage(); // 메시지 지우기
+            }
+         });
+
          // 업로드 상태 추적용 변수
          let uploadedWeather = null;      // 업로드된 날씨 종류 저장
          let uploadedImageUrl = null;     // 업로드된 이미지 URL 저장
@@ -250,23 +263,47 @@
          }
 
          // 업로드 상태 메시지 출력 함수
+         let messageTimeout = null;
+
          function showMessage(text, type = 'info') {
+            clearTimeout(messageTimeout);
+
             uploadMessage.textContent = text;
-            uploadMessage.className = 'mt-2 text-center text-xl font-semibold';
+            uploadMessage.className = 'fixed top-5 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-lg text-center text-lg font-semibold transition-opacity duration-500';
             uploadMessage.classList.remove('hidden');
+            uploadMessage.style.opacity = '1';
             uploadMessage.setAttribute('role', 'alert');
             uploadMessage.setAttribute('aria-live', 'polite');
 
-            // 메시지 유형별 텍스트 색상
             const colorClasses = {
-               success: 'text-green-600',
-               error: 'text-red-600',
-               warn: 'text-yellow-600',
-               info: 'text-gray-800'
+               success: 'bg-green-100 text-green-800 border border-green-300',
+               error: 'bg-red-100 text-red-800 border border-red-300',
+               warn: 'bg-yellow-100 text-yellow-800 border border-yellow-300',
+               info: 'bg-gray-100 text-gray-800 border border-gray-300',
             };
 
-            uploadMessage.classList.remove('text-green-600', 'text-red-600', 'text-yellow-600', 'text-gray-800');
-            uploadMessage.classList.add(colorClasses[type] || 'text-gray-800');
+            uploadMessage.classList.add(...(colorClasses[type] || colorClasses['info']).split(" "));
+
+            messageTimeout = setTimeout(() => {
+               uploadMessage.style.opacity = '0';
+               setTimeout(() => {
+                  uploadMessage.classList.add('hidden');
+                  uploadMessage.textContent = '';
+                  uploadMessage.removeAttribute('role');
+                  uploadMessage.removeAttribute('aria-live');
+               }, 500);
+            }, 3000);
+         }
+
+         function clearMessage() {
+            clearTimeout(messageTimeout);
+            uploadMessage.style.opacity = '0';
+            setTimeout(() => {
+               uploadMessage.classList.add('hidden');
+               uploadMessage.textContent = '';
+               uploadMessage.removeAttribute('role');
+               uploadMessage.removeAttribute('aria-live');
+            }, 500);
          }
 
          // 메시지 숨기기 함수
@@ -463,16 +500,28 @@
             }
          });
 
-         // 초기화 버튼 클릭 시 폼 및 상태 초기화
-         resetBtn.addEventListener("click", () => {
-            imageInput.value = "";
-            imageUrlInput.value = "";
-            weatherSelect.value = "";
-            fileNameSpan.textContent = "";
-            previewContainer.classList.add("hidden");
-            clearMessage();
-            uploadedWeather = null;
-            uploadedImageUrl = null;
+         // 초기화 버튼 클릭 이벤트
+         resetBtn.addEventListener("click", async () => {
+            try {
+               const res = await fetch("/reset-all-images", { method: "POST" });
+               const data = await res.json();
+
+               if (data.success) {
+                  showMessage("✅ 모든 이미지가 기본값으로 초기화되었습니다.", "success");
+                  // 프론트 상태 초기화
+                  imageInput.value = "";
+                  imageUrlInput.value = "";
+                  weatherSelect.value = "";
+                  fileNameSpan.textContent = "";
+                  previewContainer.classList.add("hidden");
+                  uploadedWeather = null;
+                  uploadedImageUrl = null;
+               } else {
+                  showMessage("⚠️ 초기화에 실패했습니다.", "warn");
+               }
+            } catch (error) {
+               showMessage("❌ 서버 오류가 발생했습니다.", "error");
+            }
          });
 
          // 날씨 정보 페이지 이동 버튼 클릭 시
