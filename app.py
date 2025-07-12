@@ -55,13 +55,20 @@ def remove_detail_address(addr: str) -> str:
    return ' '.join(filtered)
 
 def get_address_detail(geo_data: dict) -> str:
-   """
-   Google Geocode API 응답에서 의미 있는 주소 정보 추출 및 정리
-   """
    if geo_data.get('status') != 'OK' or not geo_data.get('results'):
       return "주소 정보 없음"
 
-   addr = {'country': '', 'admin1': '', 'admin2': '', 'locality': '', 'sub_locality': '', 'neighborhood': ''}
+   addr = {
+      'country': '',
+      'admin1': '',
+      'admin2': '',
+      'locality': '',
+      'sub_locality_1': '',
+      'sub_locality_2': '',
+      'sub_locality_3': '',
+      'neighborhood': ''
+   }
+
    for result in geo_data['results']:
       for comp in result.get('address_components', []):
          types = comp.get('types', [])
@@ -74,26 +81,32 @@ def get_address_detail(geo_data: dict) -> str:
             addr['admin2'] = name
          elif 'locality' in types and not addr['locality']:
             addr['locality'] = name
-         elif 'sublocality_level_1' in types and not addr['sub_locality']:
-            addr['sub_locality'] = name
+         elif 'sublocality_level_1' in types and not addr['sub_locality_1']:
+            addr['sub_locality_1'] = name
+         elif 'sublocality_level_2' in types and not addr['sub_locality_2']:
+            addr['sub_locality_2'] = name
+         elif 'sublocality_level_3' in types and not addr['sub_locality_3']:
+            addr['sub_locality_3'] = name
          elif 'neighborhood' in types and not addr['neighborhood']:
             addr['neighborhood'] = name
 
-   parts = [addr['country'], addr['admin1'], addr['admin2']]
+   parts = [addr['admin1'], addr['admin2']]
 
-   # 'admin1'이 'admin2'에 포함되면 중복 제거
    if addr['admin2'] and addr['admin1'] in addr['admin2']:
-      parts.pop(1)
+      parts.pop(0)
 
-   for extra in [addr['locality'], addr['sub_locality'], addr['neighborhood']]:
-      if extra and extra not in parts:
-         parts.append(extra)
+   for subloc in [addr['locality'], addr['sub_locality_1'], addr['sub_locality_2'], addr['sub_locality_3'], addr['neighborhood']]:
+      if subloc and subloc not in parts:
+         parts.append(subloc)
 
    filtered = []
    for p in parts:
       if p and p not in filtered:
          filtered.append(p)
+
    return ' '.join(filtered)
+
+
 
 # --- 날씨 정보 매핑 함수 ---
 def map_weather_info(description: str, icon: str):
@@ -219,7 +232,6 @@ def weather_page_get():
 
 @app.route('/weather', methods=['POST'])
 def weather_view():
-   # 클라이언트에서 위도, 경도 받아 날씨 및 주소 정보 응답 (캐시 적용)
    data = request.get_json() or {}
    lat, lon = data.get('lat'), data.get('lon')
    if not lat or not lon:
@@ -233,7 +245,6 @@ def weather_view():
    cache_key = (lat, lon)
    cached = weather_cache.get(cache_key)
    if cached and is_cache_valid(cached[0]):
-      # 캐시된 데이터가 유효하면 재사용
       return jsonify(cached[1])
 
    OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
@@ -246,14 +257,12 @@ def weather_view():
    }
 
    results = {}
-   # API를 병렬로 호출하여 응답 시간 단축
    threads = [threading.Thread(target=fetch_url, args=(url, results, key)) for key, url in urls.items()]
    for t in threads:
       t.start()
    for t in threads:
       t.join()
 
-   # API 호출 에러 체크
    if any('error' in results.get(k, {}) for k in urls):
       return jsonify({'cod': 500, 'message': 'API 호출 오류'})
 
@@ -261,15 +270,22 @@ def weather_view():
    forecast_data = results['forecast']
    geo_data = results['geo']
 
-   raw_address = get_address_detail(geo_data)  # 주소 정보 추출
-   cleaned_address = remove_detail_address(simplify_address(raw_address))  # 간략화 및 상세주소 제거
+   raw_address = get_address_detail(geo_data)
+   cleaned_address = remove_detail_address(simplify_address(raw_address))
+
+   # 국가명 추출
+   country = ''
+   if geo_data.get('results'):
+      for comp in geo_data['results'][0].get('address_components', []):
+         if 'country' in comp.get('types', []):
+            country = comp.get('long_name', '')
+            break
 
    desc_kr, icon_fixed = map_weather_info(
       weather_data['weather'][0]['description'],
       weather_data['weather'][0].get('icon')
    )
 
-   # 16시간 단위 예보 생성
    hourly_forecast = []
    for item in forecast_data.get('list', [])[:26]:
       desc_hourly, icon_hourly = map_weather_info(
@@ -285,7 +301,6 @@ def weather_view():
          'icon': icon_hourly
       })
 
-   # 사용자 업로드 이미지 경로 찾기 (날씨 상태명 기반)
    user_img_url = None
    base_name = weather_data['weather'][0]['main'].lower()
    for ext in ALLOWED_EXTENSIONS:
@@ -297,6 +312,7 @@ def weather_view():
    response_json = {
       'cod': 200,
       'korean_address': cleaned_address,
+      'country': country,  # 국가명 필드 추가
       'current_weather': {
          'description': desc_kr,
          'icon': icon_fixed,
@@ -308,10 +324,11 @@ def weather_view():
       'forecast': hourly_forecast
    }
 
-   # 결과를 캐시에 저장 (현재 시간, 데이터)
    weather_cache[cache_key] = (time.time(), response_json)
 
    return jsonify(response_json)
+
+
 
 @app.route('/upload')
 def upload_page():
@@ -358,7 +375,6 @@ def upload_image():
          return jsonify({'success': False, 'message': f'이미지 다운로드 실패: {str(e)}'})
 
    return jsonify({'success': False, 'message': '이미지 파일 또는 URL이 필요합니다.'})
-
 
 @app.route('/reset-all-images', methods=['POST'])
 def reset_all_images():

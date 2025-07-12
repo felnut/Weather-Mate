@@ -197,29 +197,52 @@
       function updateUIWithWeatherData(data, marker, lat, lon) {
          marker.setPosition({ lat, lng: lon });
 
-         const { korean_address: address, current_weather, forecast, user_weather_image: userImg } = data;
+         const { korean_address: address, current_weather, forecast, user_weather_image: userImg, country } = data;
 
-         document.getElementById("info").innerHTML = `
-            <p class="text-2xl font-bold mb-2 select-text">📍 위치: ${address}</p>
-            <p class="mb-1">🌡️ 온도: <span class="font-extrabold">${current_weather.temp}°C</span> (체감: ${current_weather.feels_like}°C)</p>
-            <p class="mb-1">⛅ 날씨: ${current_weather.description}</p>
-            <p class="mb-1">💧 습도: <span class="font-extrabold">${current_weather.humidity}%</span></p>
-         `;
+         // regionName을 주소 전체로 설정 (읍, 면, 동, 리 포함)
+         const regionName = address;
 
-         // 한국 이외 지역 경고 표시
+         // 한국 국가명 키워드 배열
+         const koreaNames = ["대한민국", "한국", "Korea", "Republic of Korea"];
+
+         const isKorea = koreaNames.some(name => country && country.includes(name));
+
+         // 지도 링크 URL 생성
+         let mapUrl;
+         if (isKorea) {
+            // 한국인 경우 네이버 지도 (주소 전체)
+            mapUrl = `https://map.naver.com/v5/search/${encodeURIComponent(regionName)}`;
+         } else {
+            // 해외 또는 북한일 경우 구글 지도 (위도,경도)
+            mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat.toFixed(6)},${lon.toFixed(6)}`;
+         }
+
+         // 경고 메시지 토글
          const warningEl = document.getElementById("warning-message");
-         if (!address.includes("대한민국") && !address.includes("한국")) {
+         if (!isKorea) {
             warningEl.classList.remove("hidden");
          } else {
             warningEl.classList.add("hidden");
          }
 
-         // 사용자 이미지 또는 기본 아이콘 표시
+         // info 영역 HTML 세팅
+         document.getElementById("info").innerHTML = `
+            <p class="text-2xl font-bold mb-2 select-text">
+               📍 위치:
+               <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="underline hover:text-green-700 transition">
+                  ${address}
+               </a>
+            </p>
+            <p class="mb-1">🌡️ 온도: <span class="font-extrabold">${current_weather.temp}°C</span> (체감: ${current_weather.feels_like}°C)</p>
+            <p class="mb-1">⛅ 날씨: ${current_weather.description}</p>
+            <p class="mb-1">💧 습도: <span class="font-extrabold">${current_weather.humidity}%</span></p>
+         `;
+
          const imgEl = document.getElementById("weather-img");
          imgEl.src = userImg || `https://openweathermap.org/img/wn/${current_weather.icon}@4x.png`;
          imgEl.alt = current_weather.description;
 
-         // 예보 날짜별 그룹화 및 표시
+         // 예보 표시 코드
          const forecastList = document.getElementById("forecast-list");
          forecastList.innerHTML = "";
 
@@ -254,7 +277,6 @@
             const timeContainer = document.createElement("div");
             timeContainer.className = "inline-flex gap-3 overflow-x-auto whitespace-nowrap pt-1";
 
-
             grouped[date].forEach(item => {
                const card = document.createElement("div");
                card.className = "bg-blue-300 rounded-xl p-3 text-center flex-shrink-0 w-24 text-blue-900 border border-gray-300";
@@ -262,15 +284,17 @@
                const icon = item.icon || '01d';
                const desc = item.description || '정보 없음';
 
+               const imgSrc = `https://openweathermap.org/img/wn/${icon}@2x.png`;
+
                card.innerHTML = `
-                  <p class="font-semibold text-sm mb-1">${item.time}</p>
-                  <img src="https://openweathermap.org/img/wn/${icon}@2x.png"
-                     class="mx-auto mb-1" alt="${desc}" title="${desc}"
-                     style="width:48px; height:48px;" loading="lazy" decoding="async" />
-                  <p class="text-sm">🌡 ${item.temp ?? '-'}°C</p>
-                  <p class="text-sm">💧 ${item.humidity ?? '-'}%</p>
-                  <p class="text-xs capitalize truncate" title="${desc}">${desc}</p>
-               `;
+            <p class="font-semibold text-sm mb-1">${item.time}</p>
+            <img src="${imgSrc}"
+               class="mx-auto mb-1" alt="${desc}" title="${desc}"
+               style="width:48px; height:48px;" loading="lazy" decoding="async" />
+            <p class="text-sm">🌡 ${item.temp ?? '-'}°C</p>
+            <p class="text-sm">💧 ${item.humidity ?? '-'}%</p>
+            <p class="text-xs capitalize truncate" title="${desc}">${desc}</p>
+         `;
                timeContainer.appendChild(card);
             });
 
