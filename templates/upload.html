@@ -49,7 +49,7 @@
       /* 미리보기 이미지 스타일, 페이드인 효과 */
       #preview-image {
          opacity: 0;
-         transition: opacity 0.4s ease-in-out;
+         transition: opacity 0.2s ease-in-out;
          max-width: 100%;
          height: auto;
          border-radius: 0.5rem;
@@ -114,14 +114,35 @@
             0 8px 12px -2px rgba(220, 38, 38, 0.6),
             0 4px 6px -2px rgba(185, 28, 28, 0.5);
       }
+
+      #upload-message {
+         max-width: 31rem;
+         /* 약 448px */
+         padding: 1.5rem 2rem;
+         /* 위아래 24px, 좌우 32px */
+         font-size: 1.2rem;
+         /* 조금 더 크면서 적당한 글씨 */
+         border-radius: 0.75rem;
+         /* 둥근 모서리 약간 줄임 */
+         line-height: 1.4;
+      }
    </style>
 </head>
 
 <body class="min-h-screen flex items-center justify-center p-4 sm:p-6">
    <!-- ✅ 최상단 고정 메시지 영역 -->
+   <!-- 상단 알림 메시지 (showMessage에서 사용하는 것) -->
+   <div id="top-message"
+      class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-lg text-center text-lg font-semibold
+         bg-gray-100 text-gray-800 border border-gray-300 opacity-0 pointer-events-none transition-opacity duration-500" role="alert"
+      aria-live="polite"></div>
+
+   <!-- 모달 배경 오버레이 -->
+   <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm hidden z-40"></div>
+
+   <!-- 초기화 메시지 박스 (모달) -->
    <div id="upload-message"
-      class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-lg text-center text-lg font-semibold hidden transition-opacity duration-500 opacity-0"
-      role="alert" aria-live="polite">
+      class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 px-6 py-4 rounded-xl shadow-lg text-center text-base font-semibold bg-yellow-100 text-yellow-800 border border-yellow-300 hidden">
    </div>
 
    <!-- 메인 컨테이너: 배경 반투명, 블러 효과, 그림자 적용 -->
@@ -146,7 +167,6 @@
                <option value="snow">눈 (snow)</option>
                <option value="thunderstorm">천둥번개 (thunderstorm)</option>
                <option value="fog">안개 (fog)</option>
-               <option value="default">기본 이미지 (default)</option>
             </select>
          </div>
 
@@ -219,7 +239,6 @@
 
    <script>
       document.addEventListener("DOMContentLoaded", () => {
-         // 각종 DOM 요소 참조
          const uploadForm = document.getElementById("upload-form");
          const previewBtn = document.getElementById("preview-btn");
          const previewContainer = document.getElementById("preview-container");
@@ -231,30 +250,19 @@
          const resetBtn = document.getElementById("reset-btn");
          const goWeatherBtn = document.getElementById("go-weather-btn");
          const fileNameSpan = document.getElementById("file-name");
-
-         // 파일 선택 라벨 클릭 시 날씨 선택 여부 확인
          const fileLabel = document.querySelector("label[for='image-input']");
-         fileLabel.addEventListener("click", (e) => {
-            if (!weatherSelect.value || weatherSelect.value === "") {
-               e.preventDefault(); // 파일 선택 막기
-               showMessage("⚠️ 먼저 날씨를 선택해주세요.", "warn");
-            } else {
-               clearMessage(); // 메시지 지우기
-            }
-         });
+         const topMessage = document.getElementById("top-message");
 
-         // 업로드 상태 추적용 변수
-         let uploadedWeather = null;      // 업로드된 날씨 종류 저장
-         let uploadedImageUrl = null;     // 업로드된 이미지 URL 저장
-         let isUploading = false;         // 업로드 중복 방지 플래그
+         let uploadedWeather = null;
+         let uploadedImageUrl = null;
+         let isUploading = false;
+         let resetConfirmPending = false;
+         let messageTimeout = null;
 
-         // 허용하는 이미지 확장자 정규식
          const validExtensions = /\.(png|jpg|jpeg|gif|svg|webp)$/i;
 
-         // 이미지 URL 유효성 검사 함수
          function isValidImageUrl(url) {
             try {
-               // URL 파라미터 제거 후 확장자 검사
                const cleanUrl = url.split("?")[0];
                return validExtensions.test(cleanUrl);
             } catch {
@@ -262,18 +270,14 @@
             }
          }
 
-         // 업로드 상태 메시지 출력 함수
-         let messageTimeout = null;
+         function isValidFileExtension(filename) {
+            return validExtensions.test(filename);
+         }
 
          function showMessage(text, type = 'info') {
             clearTimeout(messageTimeout);
 
-            uploadMessage.textContent = text;
-            uploadMessage.className = 'fixed top-5 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-lg text-center text-lg font-semibold transition-opacity duration-500';
-            uploadMessage.classList.remove('hidden');
-            uploadMessage.style.opacity = '1';
-            uploadMessage.setAttribute('role', 'alert');
-            uploadMessage.setAttribute('aria-live', 'polite');
+            topMessage.textContent = text;
 
             const colorClasses = {
                success: 'bg-green-100 text-green-800 border border-green-300',
@@ -282,44 +286,47 @@
                info: 'bg-gray-100 text-gray-800 border border-gray-300',
             };
 
-            uploadMessage.classList.add(...(colorClasses[type] || colorClasses['info']).split(" "));
+            // 클래스 초기화 + 기본 클래스 세팅
+            topMessage.className = 'fixed top-5 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-lg text-center text-lg font-semibold transition-opacity duration-500 opacity-100 pointer-events-auto';
+
+            // 색깔 클래스 적용
+            topMessage.classList.add(...(colorClasses[type] || colorClasses['info']).split(" "));
+
+            // 보여주기
+            topMessage.style.opacity = '1';
+            topMessage.style.pointerEvents = 'auto';
 
             messageTimeout = setTimeout(() => {
-               uploadMessage.style.opacity = '0';
-               setTimeout(() => {
-                  uploadMessage.classList.add('hidden');
-                  uploadMessage.textContent = '';
-                  uploadMessage.removeAttribute('role');
-                  uploadMessage.removeAttribute('aria-live');
-               }, 500);
-            }, 3000);
+               // 페이드 아웃
+               topMessage.style.opacity = '0';
+               topMessage.style.pointerEvents = 'none';
+            }, 1100);
          }
 
          function clearMessage() {
             clearTimeout(messageTimeout);
-            uploadMessage.style.opacity = '0';
-            setTimeout(() => {
-               uploadMessage.classList.add('hidden');
-               uploadMessage.textContent = '';
-               uploadMessage.removeAttribute('role');
-               uploadMessage.removeAttribute('aria-live');
-            }, 500);
+            topMessage.style.opacity = '0';
+            topMessage.style.pointerEvents = 'none';
+            topMessage.textContent = '';
          }
 
-         // 메시지 숨기기 함수
          function clearMessage() {
+            clearTimeout(messageTimeout);
             uploadMessage.textContent = '';
             uploadMessage.classList.add('hidden');
             uploadMessage.removeAttribute('role');
             uploadMessage.removeAttribute('aria-live');
          }
 
-         // 파일명 확장자 유효성 검사 함수
-         function isValidFileExtension(filename) {
-            return validExtensions.test(filename);
-         }
+         fileLabel.addEventListener("click", (e) => {
+            if (!weatherSelect.value) {
+               e.preventDefault();
+               showMessage("⚠️ 먼저 날씨를 선택해주세요.", "warn");
+            } else {
+               clearMessage();
+            }
+         });
 
-         // 날씨 선택 시 이벤트
          weatherSelect.addEventListener("change", () => {
             clearMessage();
             previewContainer.classList.add("hidden");
@@ -328,35 +335,9 @@
             fileNameSpan.textContent = "";
 
             const selected = weatherSelect.value;
-
             if (!selected) {
                uploadedWeather = null;
                uploadedImageUrl = null;
-               return;
-            }
-
-            if (selected === "default") {
-               if (confirm("모든 날씨 이미지를 기본 이미지로 초기화하시겠습니까?")) {
-                  fetch("/reset-all-images", { method: "POST" })
-                     .then(res => res.json())
-                     .then(result => {
-                        if (result.success) {
-                           uploadedWeather = null;
-                           uploadedImageUrl = null;
-                           showMessage("✅ 모든 날씨 이미지가 기본 이미지로 초기화 되었습니다.", "success");
-                           // 선택값 초기화
-                           weatherSelect.value = "";
-                        } else {
-                           showMessage("⚠️ 초기화에 실패했습니다.", "warn");
-                        }
-                     })
-                     .catch(() => {
-                        showMessage("❌ 서버 오류가 발생했습니다.", "error");
-                     });
-               } else {
-                  // 취소 시 선택값 초기화
-                  weatherSelect.value = "";
-               }
                return;
             }
 
@@ -365,7 +346,6 @@
             }
          });
 
-         // 파일 선택 시 파일명 표시 및 URL 입력 초기화
          imageInput.addEventListener("change", () => {
             if (imageInput.files.length > 0) {
                fileNameSpan.textContent = imageInput.files[0].name;
@@ -377,15 +357,13 @@
             }
          });
 
-         // 미리보기 버튼 클릭 시 처리
          previewBtn.addEventListener("click", () => {
             const file = imageInput.files[0];
             const url = imageUrlInput.value.trim();
 
-            // 파일이 선택된 경우, 파일 읽어 미리보기
             if (file) {
                if (!isValidFileExtension(file.name)) {
-                  alert("사진에 오류가 있습니다. 가능한 확장자는 png, jpg, jpeg, gif, svg, webp 입니다.");
+                  showMessage("가능한 확장자는 png, jpg, jpeg, gif, svg, webp 입니다.", "error");
                   return;
                }
                const reader = new FileReader();
@@ -398,10 +376,9 @@
                return;
             }
 
-            // URL이 입력된 경우 URL을 미리보기 이미지로 설정
             if (url) {
                if (!isValidImageUrl(url)) {
-                  alert("지원되는 이미지 URL이 아닙니다.");
+                  showMessage("지원되는 이미지 URL이 아닙니다.", "error");
                   return;
                }
                previewImage.src = url;
@@ -410,7 +387,6 @@
                return;
             }
 
-            // 이전 업로드 이미지가 있으면 미리보기
             if (uploadedImageUrl) {
                previewImage.src = uploadedImageUrl;
                previewImage.classList.add("visible");
@@ -418,14 +394,12 @@
                return;
             }
 
-            alert("미리볼 이미지가 없습니다.");
+            showMessage("미리볼 이미지가 없습니다.", "warn");
          });
 
-         // 업로드 폼 제출 이벤트
          uploadForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-
-            if (isUploading) return;  // 중복 업로드 방지
+            if (isUploading) return;
 
             isUploading = true;
             const submitBtn = uploadForm.querySelector("button[type='submit']");
@@ -437,54 +411,43 @@
                const file = imageInput.files[0];
                const url = imageUrlInput.value.trim();
 
-               // 날씨 선택 체크
                if (!weather) {
-                  alert("항목을 선택해주세요.");
+                  showMessage("항목을 선택해주세요.", "warn");
                   return;
                }
 
-               // 이미지 파일이나 URL 입력 체크
                if (!file && !url) {
-                  alert("이미지 파일 또는 URL을 입력해 주세요.");
+                  showMessage("이미지 파일 또는 URL을 입력해 주세요.", "warn");
                   return;
                }
 
-               // 파일 확장자 검사
                if (file && !isValidFileExtension(file.name)) {
-                  alert("사진에 오류가 있습니다. 가능한 확장자는 png, jpg, jpeg, gif, svg, webp 입니다.");
+                  showMessage("파일 확장자가 유효하지 않습니다.", "error");
                   return;
                }
 
-               // URL 유효성 검사
                if (url && !isValidImageUrl(url)) {
-                  alert("지원되는 이미지 URL이 아닙니다.");
+                  showMessage("URL이 유효한 이미지가 아닙니다.", "error");
                   return;
                }
 
-               // 이미 업로드한 날씨 이미지가 있으면 덮어쓰기 확인
                if (uploadedWeather === weather) {
                   if (!confirm("이미 업로드된 사진이 있습니다. 덮어쓰시겠습니까?")) {
                      return;
                   }
                }
 
-               // 서버에 전송할 폼데이터 구성
                const formData = new FormData();
                formData.append("weather", weather);
                if (file) formData.append("image", file);
-               else if (url) formData.append("image_url", url);
+               else formData.append("image_url", url);
 
-               // 서버에 POST 요청
                const res = await fetch("/upload-image", { method: "POST", body: formData });
-               if (!res.ok) throw new Error(`서버 응답 오류: ${res.status}`);
-
                const result = await res.json();
 
                if (result.success) {
-                  // 업로드 성공 시 상태 업데이트 및 UI 초기화
                   uploadedWeather = weather;
                   uploadedImageUrl = `/static/weather_images/${uploadedWeather}.png?v=${Date.now()}`;
-
                   showMessage("✅ 업로드가 되었습니다.", "success");
                   previewContainer.classList.add("hidden");
                   imageInput.value = "";
@@ -500,37 +463,67 @@
             }
          });
 
-         // 초기화 버튼 클릭 이벤트
-         resetBtn.addEventListener("click", async () => {
-            try {
-               const res = await fetch("/reset-all-images", { method: "POST" });
-               const data = await res.json();
+         resetBtn.addEventListener("click", () => {
+            if (resetConfirmPending) return;
+            resetConfirmPending = true;
 
-               if (data.success) {
-                  showMessage("✅ 모든 이미지가 기본값으로 초기화되었습니다.", "success");
-                  // 프론트 상태 초기화
-                  imageInput.value = "";
-                  imageUrlInput.value = "";
-                  weatherSelect.value = "";
-                  fileNameSpan.textContent = "";
-                  previewContainer.classList.add("hidden");
-                  uploadedWeather = null;
-                  uploadedImageUrl = null;
-               } else {
-                  showMessage("⚠️ 초기화에 실패했습니다.", "warn");
-               }
-            } catch (error) {
-               showMessage("❌ 서버 오류가 발생했습니다.", "error");
-            }
+            // 메시지 내용 설정
+            uploadMessage.innerHTML = `
+      <div class="mb-2">🔄 정말 모든 이미지를 기본값으로 초기화하시겠습니까?</div>
+      <div class="flex justify-center gap-4 mt-2">
+         <button id="confirm-reset" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow hover:bg-red-700 transition">초기화</button>
+         <button id="cancel-reset" class="px-4 py-2 bg-gray-300 text-gray-800 font-semibold rounded-lg shadow hover:bg-gray-400 transition">취소</button>
+      </div>
+   `;
+
+            // 메시지와 오버레이 표시
+            uploadMessage.classList.remove('hidden');
+            document.getElementById('modal-overlay').classList.remove('hidden');
+
+            // 포커스 및 aria 속성 설정도 필요하면 추가
+
+            // 이벤트 바인딩
+            setTimeout(() => {
+               document.getElementById("confirm-reset")?.addEventListener("click", async () => {
+                  try {
+                     const res = await fetch("/reset-all-images", { method: "POST" });
+                     const data = await res.json();
+
+                     if (data.success) {
+                        showMessage("✅ 모든 이미지가 기본값으로 초기화되었습니다.", "success");
+                        imageInput.value = "";
+                        imageUrlInput.value = "";
+                        weatherSelect.value = "";
+                        fileNameSpan.textContent = "";
+                        previewContainer.classList.add("hidden");
+                        uploadedWeather = null;
+                        uploadedImageUrl = null;
+                     } else {
+                        showMessage("⚠️ 초기화에 실패했습니다.", "warn");
+                     }
+                  } catch {
+                     showMessage("❌ 서버 오류가 발생했습니다.", "error");
+                  } finally {
+                     resetConfirmPending = false;
+                     uploadMessage.classList.add('hidden');
+                     document.getElementById('modal-overlay').classList.add('hidden');
+                  }
+               });
+
+               document.getElementById("cancel-reset")?.addEventListener("click", () => {
+                  resetConfirmPending = false;
+                  uploadMessage.classList.add('hidden');
+                  document.getElementById('modal-overlay').classList.add('hidden');
+               });
+            }, 0);
          });
 
-         // 날씨 정보 페이지 이동 버튼 클릭 시
          goWeatherBtn.addEventListener("click", () => {
             window.location.href = "/weather";
          });
       });
-
    </script>
+
 </body>
 
 </html>
