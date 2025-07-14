@@ -29,7 +29,7 @@
          border-radius: 4px;
       }
 
-      /* 하루 예보를 담는 박스에만 적용 */
+      /* 하루 예보 박스 스타일 */
       #forecast-list>div {
          margin-top: 0.5rem;
          margin-bottom: 0.5rem;
@@ -44,26 +44,28 @@
          overflow-y: visible;
       }
 
-      /* 검색 버튼 스타일 */
+      /* 검색 버튼 기본 스타일 */
       #search-btn {
          transition: background-color 0.3s ease, box-shadow 0.3s ease;
          box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5),
             0 2px 4px -1px rgba(37, 99, 235, 0.4);
       }
 
+      /* 검색 버튼 호버 스타일 */
       #search-btn:hover {
          background: linear-gradient(90deg, #2563eb, #1e40af);
          box-shadow: 0 8px 12px -2px rgba(37, 99, 235, 0.6),
             0 4px 6px -2px rgba(30, 64, 175, 0.5);
       }
 
-      /* 업로드 버튼 스타일 */
+      /* 업로드 버튼 기본 스타일 */
       #go-upload-btn {
          transition: background-color 0.3s ease, box-shadow 0.3s ease;
          box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.5),
             0 2px 4px -1px rgba(22, 163, 74, 0.4);
       }
 
+      /* 업로드 버튼 호버 스타일 */
       #go-upload-btn:hover {
          background: linear-gradient(90deg, #16a34a, #15803d);
          box-shadow: 0 8px 12px -2px rgba(22, 163, 74, 0.6),
@@ -75,19 +77,25 @@
 <body
    class="bg-gradient-to-tr from-blue-50 via-white to-blue-100 font-sans min-h-screen flex flex-col items-center p-6 text-gray-800">
 
+   <!-- 상단 로고 이미지 -->
    <img src="../static/icons/WeatherMateNoWord.ico" alt="날씨 친구 로고" class="w-48 h-35 mb-4 drop-shadow-lg" loading="lazy"
       decoding="async" />
 
+   <!-- 페이지 제목 -->
    <h2 class="text-4xl font-extrabold mb-2 text-center text-blue-900 drop-shadow-md">날씨 친구</h2>
 
+   <!-- 안내 문구 -->
    <h3 class="text-lg mb-6 text-center text-blue-700 max-w-xl">지도에서 위치를 클릭하거나 주소를 입력하여<br />날씨 정보를 확인하세요!</h3>
 
+   <!-- 카카오 지도 영역 -->
    <div id="map"
       class="w-full max-w-5xl h-96 rounded-xl shadow-xl border-2 border-blue-500 transition-shadow hover:shadow-2xl"
       role="region" aria-label="날씨 지도"></div>
 
+   <!-- 위치 정확도 표시 영역 -->
    <div id="accuracy-text" class="mt-2 text-sm text-blue-800 font-medium"></div>
 
+   <!-- 주소 입력 및 검색 버튼 -->
    <div class="mt-6 max-w-5xl w-full flex gap-3">
       <input type="text" id="address-input" placeholder="주소를 입력하세요"
          class="flex-grow rounded-xl border-2 border-blue-400 px-5 py-3 font-bold text-blue-900 placeholder-blue-400 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-400 transition" />
@@ -97,6 +105,7 @@
       </button>
    </div>
 
+   <!-- 업로드 페이지 이동 및 현재 위치 이동 버튼 -->
    <div class="mt-6 max-w-5xl w-full flex justify-end items-center gap-2 text-blue-900">
       <button id="go-upload-btn" type="button"
          class="inline-flex items-center justify-center bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold px-5 py-3 rounded-xl shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300 transition select-none">
@@ -108,12 +117,14 @@
       </button>
    </div>
 
+   <!-- 경고 메시지 (기본 숨김) -->
    <div id="warning-message"
       class="bg-yellow-300 text-yellow-900 text-center py-2 text-sm font-semibold rounded-xl mt-6 max-w-5xl w-full select-none hidden">
       ⚠️ 북한이나 해외는 주소 정보가 부분적으로 영어가 표시될 수 있습니다.<br />
       다만, 날씨 정보는 정확하게 제공됩니다.
    </div>
 
+   <!-- 날씨 정보 및 이미지 영역 -->
    <section id="info-container"
       class="mt-8 max-w-5xl w-full bg-blue-200 rounded-3xl shadow-2xl p-8 flex flex-col md:flex-row md:items-center gap-8 text-blue-900 border border-blue-200">
       <div id="info" class="flex-1 text-lg leading-relaxed select-text text-center md:text-left">
@@ -123,23 +134,32 @@
          loading="lazy" decoding="async" />
    </section>
 
+   <!-- 예보 컨테이너 -->
    <section id="forecast-container"
       class="mt-6 max-w-5xl w-full bg-blue-300 rounded-xl p-3 shadow-inner border border-blue-200 whitespace-nowrap overflow-x-auto">
       <div id="forecast-list" class="inline-flex gap-3"></div>
    </section>
 
+   <!-- 카카오 지도 API 스크립트 (서비스 라이브러리 포함) -->
    <script type="text/javascript"
       src="//dapi.kakao.com/v2/maps/sdk.js?appkey=037ece45122535d37366821e9fe46e2d&libraries=services"></script>
 
    <script>
+      // 날씨 데이터를 좌표별로 캐싱하기 위한 Map
       const weatherCache = new Map();
+      // 마지막으로 요청한 좌표 문자열(중복 요청 방지용)
       let lastRequestedCoords = null;
+      // 현재 날씨 요청 중인지 여부 플래그
       let isRequesting = false;
+      // 정확도 원 표시 객체 변수
       let accuracyCircle = null;
+      // 카카오 지도와 마커 변수
       let map, marker;
 
+      // 카카오 주소 변환 서비스 객체 생성
       const geocoder = new kakao.maps.services.Geocoder();
 
+      // 위치 및 날씨 정보 로딩 중 화면 처리
       function showLoading() {
          document.getElementById("info").innerText = "현재 위치를 확인하고 있습니다...";
          document.getElementById("weather-img").src = "";
@@ -151,6 +171,7 @@
          }
       }
 
+      // 오류 발생 시 사용자에게 보여줄 메시지 처리
       function showError(msg) {
          document.getElementById("info").innerText = msg;
          document.getElementById("weather-img").src = "";
@@ -162,13 +183,17 @@
          }
       }
 
+      // 위도, 경도로 날씨 API 호출하고 UI 업데이트
       async function fetchWeatherAndUpdate(lat, lon, marker, accuracy = null) {
          lat = parseFloat(lat.toFixed(10));
          lon = parseFloat(lon.toFixed(10));
          const coordKey = `${lat},${lon}`;
+
+         // 중복 요청 방지
          if (lastRequestedCoords === coordKey && isRequesting) return;
          lastRequestedCoords = coordKey;
 
+         // 캐시된 데이터가 있으면 바로 UI 업데이트
          if (weatherCache.has(coordKey)) {
             updateUIWithWeatherData(weatherCache.get(coordKey), marker, lat, lon, accuracy);
             return;
@@ -178,16 +203,20 @@
          isRequesting = true;
 
          try {
+            // 서버에 현재 좌표로 날씨 정보 요청
             const res = await fetch("/weather", {
                method: "POST",
                headers: { "Content-Type": "application/json" },
                body: JSON.stringify({ lat, lon }),
             });
             const data = await res.json();
+
+            // 응답 확인
             if (!res.ok || data.cod !== 200) {
                throw new Error(data.message || "날씨 정보를 불러오지 못했습니다.");
             }
 
+            // 캐시에 저장하고 UI 갱신
             weatherCache.set(coordKey, data);
             updateUIWithWeatherData(data, marker, lat, lon, accuracy);
          } catch (err) {
@@ -198,12 +227,14 @@
          }
       }
 
+      // 받아온 날씨 데이터를 UI에 표시하는 함수
       function updateUIWithWeatherData(data, marker, lat, lon, accuracy = null) {
          const infoEl = document.getElementById("info");
          const imgEl = document.getElementById("weather-img");
          const forecastList = document.getElementById("forecast-list");
          const accuracyTextEl = document.getElementById("accuracy-text");
 
+         // 서버에서 받은 데이터 구조 분해 할당
          const {
             korean_address: address,
             current_weather,
@@ -211,6 +242,7 @@
             user_weather_image: userImg
          } = data;
 
+         // 위치 및 현재 날씨 정보 출력
          infoEl.innerHTML = `
       <p class="text-2xl font-bold mb-2 select-text">
          📍 위치:
@@ -221,23 +253,30 @@
       <p class="mb-1">💧 습도: <span class="font-extrabold">${current_weather.humidity}%</span></p>
    `;
 
+         // 날씨 이미지 설정 (사용자 업로드 이미지가 있으면 그걸 우선 사용)
          imgEl.src = userImg || `https://openweathermap.org/img/wn/${current_weather.icon}@4x.png`;
          imgEl.alt = current_weather.description;
 
+         // 위치 정확도(반경)를 원과 텍스트로 표시
          if (accuracy) {
-            const radius = accuracy / 2;
+            const radius = accuracy / 2; // 정확도 반의 반경 사용
             accuracyTextEl.innerHTML = `📏 예상 위치 반경: 약 ${Math.round(radius)}m<br>원 안에 있을 것으로 예상됩니다.`;
             accuracyTextEl.style.textAlign = 'center';
+
+            // 이전 원 제거
             if (accuracyCircle) accuracyCircle.setMap(null);
+
+            // 카카오 지도에 원 표시
             accuracyCircle = new kakao.maps.Circle({
                center: new kakao.maps.LatLng(lat, lon),
                radius: radius,
-               strokeWeight: 0,
-               fillColor: 'rgba(30,144,255,0.2)',
+               strokeWeight: 0, // 테두리 두께 없음
+               fillColor: 'rgba(30,144,255,0.2)', // 파란색 반투명
                fillOpacity: 1,
                map: map
             });
          } else {
+            // 정확도 없을 때 텍스트와 원 제거
             accuracyTextEl.textContent = "";
             if (accuracyCircle) {
                accuracyCircle.setMap(null);
@@ -245,23 +284,35 @@
             }
          }
 
+         // 예보 리스트 초기화
          forecastList.innerHTML = "";
+
+         // 날짜별로 예보 그룹핑
          const grouped = {};
          forecast.forEach(item => {
             if (!grouped[item.date]) grouped[item.date] = [];
             grouped[item.date].push(item);
          });
 
+         // 최대 4일치 예보만 출력
          Object.keys(grouped).slice(0, 4).forEach(date => {
             const [y, m, d] = date.split("-");
             const dayLabel = `${parseInt(m)}월 ${parseInt(d)}일`;
+
+            // 하루 예보 박스 생성
             const dayContainer = document.createElement("div");
             dayContainer.className = "bg-blue-200 rounded-xl p-4 shadow-lg mb-4 w-full text-blue-900 flex flex-col justify-between";
+
+            // 날짜 헤더
             const header = document.createElement("h4");
             header.className = "font-bold text-lg mb-4";
             header.textContent = dayLabel;
+
+            // 시간별 예보 리스트 컨테이너
             const timeContainer = document.createElement("div");
             timeContainer.className = "inline-flex gap-3 overflow-x-auto whitespace-nowrap pt-1";
+
+            // 시간별 카드 생성
             grouped[date].forEach(item => {
                const card = document.createElement("div");
                card.className = "bg-blue-300 rounded-xl p-3 text-center flex-shrink-0 w-24 text-blue-900 border border-gray-300";
@@ -274,12 +325,17 @@
          `;
                timeContainer.appendChild(card);
             });
+
+            // 날짜 헤더와 시간별 예보 리스트를 박스에 추가
             dayContainer.appendChild(header);
             dayContainer.appendChild(timeContainer);
+
+            // 전체 예보 리스트에 추가
             forecastList.appendChild(dayContainer);
          });
       }
 
+      // Google 위치 정보 가져오기 (서버 연동)
       async function fetchGoogleLocation() {
          try {
             const response = await fetch('/geolocate', {
@@ -287,6 +343,8 @@
                headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
+
+            // 위치 정보가 있으면 반환
             if (data.location) {
                return {
                   latitude: data.location.lat,
@@ -300,6 +358,7 @@
          }
       }
 
+      // 주소로 좌표 검색 함수
       function searchAddress(addr) {
          geocoder.addressSearch(addr, function (result, status) {
             if (status === kakao.maps.services.Status.OK) {
@@ -307,10 +366,12 @@
                const lon = parseFloat(result[0].x);
                const pos = new kakao.maps.LatLng(lat, lon);
 
+               // 지도 위치 및 마커 이동
                map.setCenter(pos);
                map.setLevel(5);
                marker.setPosition(pos);
 
+               // 해당 좌표 날씨 정보 요청 및 업데이트
                fetchWeatherAndUpdate(lat, lon, marker);
             } else {
                alert("주소를 찾을 수 없습니다.");
@@ -318,21 +379,25 @@
          });
       }
 
+      // 지도 초기화 함수
       async function initMap() {
          const defaultLat = 37.4940906854463;
          const defaultLng = 126.917031672483;
          const mapContainer = document.getElementById('map');
 
+         // 카카오 지도 생성
          map = new kakao.maps.Map(mapContainer, {
             center: new kakao.maps.LatLng(defaultLat, defaultLng),
             level: 7,
          });
 
+         // 기본 마커 생성 및 지도에 표시
          marker = new kakao.maps.Marker({
             position: new kakao.maps.LatLng(defaultLat, defaultLng),
             map: map
          });
 
+         // Google 위치 정보 받아오기 시도
          const googleLocation = await fetchGoogleLocation();
          if (googleLocation) {
             const { latitude, longitude, accuracy } = googleLocation;
@@ -342,6 +407,7 @@
             marker.setPosition(pos);
             fetchWeatherAndUpdate(latitude, longitude, marker, accuracy);
          } else if (navigator.geolocation) {
+            // HTML5 Geolocation 사용
             navigator.geolocation.getCurrentPosition(
                (position) => {
                   const lat = position.coords.latitude;
@@ -354,14 +420,17 @@
                   fetchWeatherAndUpdate(lat, lon, marker, acc);
                },
                () => {
+                  // 위치 획득 실패 시 기본 위치로 날씨 정보 요청
                   fetchWeatherAndUpdate(defaultLat, defaultLng, marker);
                },
                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
          } else {
+            // 위치 API 지원 안 하면 기본 위치로 날씨 정보 요청
             fetchWeatherAndUpdate(defaultLat, defaultLng, marker);
          }
 
+         // 지도 클릭 시 마커 위치 이동 및 날씨 정보 갱신
          kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
             const lat = mouseEvent.latLng.getLat();
             const lon = mouseEvent.latLng.getLng();
@@ -370,7 +439,7 @@
             fetchWeatherAndUpdate(lat, lon, marker);
          });
 
-         // 검색 버튼 이벤트
+         // 검색 버튼 클릭 이벤트 연결
          document.getElementById("search-btn").addEventListener("click", () => {
             const addr = document.getElementById("address-input").value.trim();
             if (!addr) {
@@ -380,7 +449,7 @@
             searchAddress(addr);
          });
 
-         // 엔터키 이벤트 (주소 입력창)
+         // 주소 입력창에서 Enter 키 누르면 검색 버튼 클릭 이벤트 실행
          document.getElementById("address-input").addEventListener("keydown", (e) => {
             if (e.key === "Enter" || e.keyCode === 13) {
                e.preventDefault();
@@ -389,6 +458,7 @@
          });
       }
 
+      // DOMContentLoaded 이벤트 발생 시 지도 초기화
       document.addEventListener("DOMContentLoaded", initMap);
 
    </script>
