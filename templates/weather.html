@@ -5,19 +5,24 @@
    <meta charset="UTF-8" />
    <title>날씨 친구</title>
 
-   <link rel="shortcut icon" href="/static/icons/WeatherMateHaveWord.ico">
+   <link rel="shortcut icon" href="/static/icons/WeatherMateHaveWord.ico" />
    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
    <script src="https://cdn.tailwindcss.com"></script>
 
    <style>
-      /* 예보 컨테이너 가로 스크롤 가능하게 설정 */
+      /* 예보 컨테이너: 가로 스크롤 활성화 및 스크롤바 디자인 */
       #forecast-container {
          overflow-x: auto !important;
+         /* 가로 스크롤 활성화 */
          -webkit-overflow-scrolling: touch;
+         /* iOS 스크롤 부드럽게 */
+         white-space: nowrap;
+         /* 자식 요소들이 기본적으로 줄바꿈되지 않도록 (가로 스크롤 유도) */
+         padding-bottom: 8px;
+         /* 스크롤바 공간 확보 */
       }
 
-      /* 스크롤바 디자인 */
       #forecast-container::-webkit-scrollbar {
          height: 8px;
          background: #282828;
@@ -29,19 +34,93 @@
          border-radius: 4px;
       }
 
-      /* 하루 예보 박스 스타일 */
+      /* 예보 리스트: 날짜별 박스들을 가로로 나열 */
+      #forecast-list {
+         display: flex;
+         /* flex 컨테이너 */
+         gap: 1rem;
+         /* 각 날짜별 박스 사이 간격 */
+         flex-wrap: nowrap;
+         /* 중요: 날짜별 박스들은 줄바꿈되지 않도록 유지하여 전체 스크롤 유도 */
+         align-items: flex-start;
+         /* 상단 정렬 */
+         width: fit-content;
+         /* 내부 콘텐츠에 맞춰 너비 조절 */
+      }
+
+      /* 하루 예보 박스: 각 날짜별 박스 (핵심 수정 부분) */
       #forecast-list>div {
-         margin-top: 0.5rem;
-         margin-bottom: 0.5rem;
-         padding-top: 1rem;
-         padding-bottom: 1rem;
          display: flex;
          flex-direction: column;
-         justify-content: center;
+         flex-shrink: 0;
+         /* 부모 스크롤 컨테이너 내에서 크기가 줄어들지 않도록 유지 */
+         flex-grow: 0;
+         /* 유연하게 늘어나지 않고 내용에 맞춰 크기 유지 */
+         background-color: #bfdbfe;
+         border-radius: 1rem;
+         padding: 1rem;
+         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+         /* ⭐ 핵심 변경: min-width를 제거하여 콘텐츠 크기에 맞춰 유동적으로 변하도록 함 */
+         width: auto;
+         /* ⭐ 추가: 너비를 자동으로 설정하여 내용에 따라 늘어나거나 줄어들게 함 */
+         /* max-width는 Tailwind의 max-w-full과 충돌할 수 있으므로, 제거하거나 none으로 설정합니다. */
+         max-width: none;
+         /* 이전 제안 유지: Tailwind의 max-w-full 충돌 방지 */
          box-sizing: border-box;
-         min-height: 150px;
-         height: auto;
-         overflow-y: visible;
+      }
+
+      /* 시간별 카드 컨테이너: 시간별 카드들을 여러 줄로 배치 */
+      #forecast-list>div>div {
+         display: flex;
+         gap: 0.75rem;
+         overflow-x: visible;
+         /* 내부 스크롤바 제거 */
+         white-space: normal;
+         /* 내부 카드들이 줄바꿈되도록 */
+         flex-wrap: wrap;
+         /* ⭐ 핵심: 시간별 카드들이 컨테이너를 넘치면 다음 줄로 이동 */
+         justify-content: center;
+         /* 가운데 정렬 (선택 사항) */
+         min-width: 0;
+         /* flex item 내부에서 content가 넘칠 경우를 대비 */
+      }
+
+      /* 시간별 예보 카드: 각 카드의 크기 */
+      #forecast-list>div>div>div {
+         flex-shrink: 0;
+         width: 96px;
+         /* 카드 너비 */
+         min-width: 80px;
+         /* 카드 최소 너비 */
+         background-color: #93c5fd;
+         border-radius: 0.75rem;
+         padding: 0.75rem;
+         text-align: center;
+         border: 1px solid #d1d5db;
+         color: #1e3a8a;
+      }
+
+      /* .timeContainer 및 .timeCard는 위와 동일하게 적용되도록 클래스명 유지 */
+      .timeContainer {
+         display: flex;
+         gap: 0.75rem;
+         overflow-x: visible;
+         white-space: normal;
+         flex-wrap: wrap;
+         justify-content: center;
+         min-width: 0;
+      }
+
+      .timeCard {
+         flex-shrink: 0;
+         width: 96px;
+         min-width: 80px;
+         background-color: #93c5fd;
+         border-radius: 0.75rem;
+         padding: 0.75rem;
+         text-align: center;
+         border: 1px solid #d1d5db;
+         color: #1e3a8a;
       }
 
       /* 검색 버튼 기본 스타일 */
@@ -75,74 +154,81 @@
 </head>
 
 <body
-   class="bg-gradient-to-tr from-blue-50 via-white to-blue-100 font-sans min-h-screen flex flex-col items-center p-6 text-gray-800">
+   class="bg-gradient-to-tr from-blue-50 via-white to-blue-100 font-sans min-h-screen flex flex-col items-center p-4 sm:p-6 text-gray-800">
 
    <!-- 상단 로고 이미지 -->
-   <img src="../static/icons/WeatherMateNoWord.ico" alt="날씨 친구 로고" class="w-48 h-35 mb-4 drop-shadow-lg" loading="lazy"
-      decoding="async" />
+   <img src="../static/icons/WeatherMateNoWord.ico" alt="날씨 친구 로고" class="w-36 sm:w-48 h-auto mb-4 drop-shadow-lg"
+      loading="lazy" decoding="async" />
 
    <!-- 페이지 제목 -->
-   <h2 class="text-4xl font-extrabold mb-2 text-center text-blue-900 drop-shadow-md">날씨 친구</h2>
+   <h2 class="text-3xl sm:text-4xl font-extrabold mb-2 text-center text-blue-900 drop-shadow-md leading-tight max-w-xl">
+      날씨 친구
+   </h2>
 
    <!-- 안내 문구 -->
-   <h3 class="text-lg mb-6 text-center text-blue-700 max-w-xl">지도에서 위치를 클릭하거나 주소를 입력하여<br />날씨 정보를 확인하세요!</h3>
+   <h3
+      class="text-base sm:text-lg mb-6 text-center text-blue-700 max-w-xl leading-relaxed px-2 sm:px-0 whitespace-normal">
+      지도에서 위치를 클릭하거나 주소를 입력하여<br />날씨 정보를 확인하세요!
+   </h3>
 
    <!-- 카카오 지도 영역 -->
    <div id="map"
-      class="w-full max-w-5xl h-96 rounded-xl shadow-xl border-2 border-blue-500 transition-shadow hover:shadow-2xl"
+      class="w-full max-w-5xl h-72 sm:h-96 rounded-xl shadow-xl border-2 border-blue-500 transition-shadow hover:shadow-2xl"
       role="region" aria-label="날씨 지도"></div>
 
    <!-- 위치 정확도 표시 영역 -->
-   <div id="accuracy-text" class="mt-2 text-sm text-blue-800 font-medium"></div>
+   <div id="accuracy-text" class="mt-2 text-xs sm:text-sm text-blue-800 font-medium text-center"></div>
 
    <!-- 주소 입력 및 검색 버튼 -->
-   <div class="mt-6 max-w-5xl w-full flex gap-3">
+   <div
+      class="mt-6 max-w-5xl w-full flex flex-col sm:flex-row gap-3 sm:gap-4 px-2 sm:px-0 justify-center sm:justify-start items-stretch">
       <input type="text" id="address-input" placeholder="주소를 입력하세요"
-         class="flex-grow rounded-xl border-2 border-blue-400 px-5 py-3 font-bold text-blue-900 placeholder-blue-400 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-400 transition" />
+         class="flex-grow rounded-xl border-2 border-blue-400 px-4 py-2 sm:py-3 font-bold text-blue-900 placeholder-blue-400 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-400 transition text-sm sm:text-base" />
       <button id="search-btn" type="button"
-         class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300 transition">
+         class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-5 py-2 sm:py-3 rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300 transition text-sm sm:text-base">
          🔍 검색
       </button>
    </div>
 
    <!-- 업로드 페이지 이동 및 현재 위치 이동 버튼 -->
-   <div class="mt-6 max-w-5xl w-full flex justify-end items-center gap-2 text-blue-900">
+   <div
+      class="mt-6 max-w-5xl w-full flex flex-col sm:flex-row justify-end items-center gap-3 sm:gap-2 text-blue-900 px-2 sm:px-0">
       <button id="go-upload-btn" type="button"
-         class="inline-flex items-center justify-center bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold px-5 py-3 rounded-xl shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300 transition select-none">
+         class="inline-flex items-center justify-center bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold px-5 py-2 sm:py-3 rounded-xl shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300 transition select-none w-full sm:w-auto text-sm sm:text-base">
          ⬆️ 이미지 업로드 페이지로 이동
       </button>
       <button id="recenter-btn" type="button"
-         class="inline-flex items-center justify-center bg-gradient-to-r from-blue-400 to-blue-600 text-white font-semibold px-5 py-3 rounded-xl shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300 transition select-none">
+         class="inline-flex items-center justify-center bg-gradient-to-r from-blue-400 to-blue-600 text-white font-semibold px-5 py-2 sm:py-3 rounded-xl shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300 transition select-none w-full sm:w-auto text-sm sm:text-base">
          📍 현재 위치로 이동
       </button>
    </div>
 
    <!-- 경고 메시지 (기본 숨김) -->
    <div id="warning-message"
-      class="bg-yellow-300 text-yellow-900 text-center py-2 text-sm font-semibold rounded-xl mt-6 max-w-5xl w-full select-none hidden">
+      class="bg-yellow-300 text-yellow-900 text-center py-2 text-xs sm:text-sm font-semibold rounded-xl mt-6 max-w-5xl w-full select-none hidden px-2 sm:px-0">
       ⚠️ 북한이나 해외는 주소 정보가 부분적으로 영어가 표시될 수 있습니다.<br />
       다만, 날씨 정보는 정확하게 제공됩니다.
    </div>
 
    <!-- 날씨 정보 및 이미지 영역 -->
    <section id="info-container"
-      class="mt-8 max-w-5xl w-full bg-blue-200 rounded-3xl shadow-2xl p-8 flex flex-col md:flex-row md:items-center gap-8 text-blue-900 border border-blue-200">
-      <div id="info" class="flex-1 text-lg leading-relaxed select-text text-center md:text-left">
+      class="mt-8 max-w-5xl w-full bg-blue-200 rounded-3xl shadow-2xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center gap-6 sm:gap-8 text-blue-900 border border-blue-200">
+      <div id="info" class="flex-1 text-base sm:text-lg leading-relaxed select-text text-center md:text-left">
          날씨 정보 없음
       </div>
-      <img id="weather-img" src="" alt="날씨 이미지" class="w-40 h-40 rounded-xl object-cover self-center mx-auto md:mx-0"
-         loading="lazy" decoding="async" />
+      <img id="weather-img" src="" alt="날씨 이미지"
+         class="w-32 sm:w-40 h-32 sm:h-40 rounded-xl object-cover self-center mx-auto md:mx-0" loading="lazy"
+         decoding="async" />
    </section>
 
    <!-- 예보 컨테이너 -->
    <section id="forecast-container"
-      class="mt-6 max-w-5xl w-full bg-blue-300 rounded-xl p-3 shadow-inner border border-blue-200 whitespace-nowrap overflow-x-auto">
+      class="mt-6 max-w-5xl w-full bg-blue-300 rounded-xl p-3 shadow-inner border border-blue-200 whitespace-nowrap overflow-x-auto px-2 sm:px-3">
       <div id="forecast-list" class="inline-flex gap-3"></div>
    </section>
 
-   <!-- 카카오 지도 API 스크립트 (서비스 라이브러리 포함) -->
    <script type="text/javascript"
-      src="//dapi.kakao.com/v2/maps/sdk.js?appkey=037ece45122535d37366821e9fe46e2d&libraries=services"></script>
+      src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ kakao_key }}&libraries=services"></script>
 
    <script>
       // 날씨 데이터를 좌표별로 캐싱하기 위한 Map
@@ -155,9 +241,9 @@
       let accuracyCircle = null;
       // 카카오 지도와 마커 변수
       let map, marker;
+      // 카카오 주소 변환 서비스 객체는 kakao.maps.load() 내부에서 초기화
+      let geocoder;
 
-      // 카카오 주소 변환 서비스 객체 생성
-      const geocoder = new kakao.maps.services.Geocoder();
 
       // 위치 및 날씨 정보 로딩 중 화면 처리
       function showLoading() {
@@ -184,7 +270,7 @@
       }
 
       // 위도, 경도로 날씨 API 호출하고 UI 업데이트
-      async function fetchWeatherAndUpdate(lat, lon, marker, accuracy = null) {
+      async function fetchWeatherAndUpdate(lat, lon, markerInstance, accuracy = null) { // marker -> markerInstance 이름 변경
          lat = parseFloat(lat.toFixed(10));
          lon = parseFloat(lon.toFixed(10));
          const coordKey = `${lat},${lon}`;
@@ -195,7 +281,7 @@
 
          // 캐시된 데이터가 있으면 바로 UI 업데이트
          if (weatherCache.has(coordKey)) {
-            updateUIWithWeatherData(weatherCache.get(coordKey), marker, lat, lon, accuracy);
+            updateUIWithWeatherData(weatherCache.get(coordKey), markerInstance, lat, lon, accuracy);
             return;
          }
 
@@ -218,7 +304,7 @@
 
             // 캐시에 저장하고 UI 갱신
             weatherCache.set(coordKey, data);
-            updateUIWithWeatherData(data, marker, lat, lon, accuracy);
+            updateUIWithWeatherData(data, markerInstance, lat, lon, accuracy);
          } catch (err) {
             console.error("날씨 정보 요청 오류:", err);
             showError("서버 요청 중 오류가 발생했습니다.");
@@ -228,30 +314,32 @@
       }
 
       // 받아온 날씨 데이터를 UI에 표시하는 함수
-      function updateUIWithWeatherData(data, marker, lat, lon, accuracy = null) {
+      function updateUIWithWeatherData(data, markerInstance, lat, lon, accuracy = null) { // marker -> markerInstance 이름 변경
          const infoEl = document.getElementById("info");
          const imgEl = document.getElementById("weather-img");
          const forecastList = document.getElementById("forecast-list");
          const accuracyTextEl = document.getElementById("accuracy-text");
+         const warningMessageEl = document.getElementById("warning-message"); // 경고 메시지 엘리먼트 추가
 
          // 서버에서 받은 데이터 구조 분해 할당
          const {
             korean_address: address,
             current_weather,
             forecast,
-            user_weather_image: userImg
+            user_weather_image: userImg,
+            country // 국가 정보 추가
          } = data;
 
          // 위치 및 현재 날씨 정보 출력
          infoEl.innerHTML = `
-      <p class="text-2xl font-bold mb-2 select-text">
-         📍 위치:
-         <a href="https://map.kakao.com/link/map/${lat},${lon}" target="_blank" rel="noopener noreferrer" class="underline hover:text-green-700 transition">${address}</a>
-      </p>
-      <p class="mb-1">🌡️ 온도: <span class="font-extrabold">${current_weather.temp}°C</span> (체감: ${current_weather.feels_like}°C)</p>
-      <p class="mb-1">⛅ 날씨: ${current_weather.description}</p>
-      <p class="mb-1">💧 습도: <span class="font-extrabold">${current_weather.humidity}%</span></p>
-   `;
+        <p class="text-2xl font-bold mb-2 select-text">
+            📍 위치:
+            <a href="https://map.kakao.com/link/map/${lat},${lon}" target="_blank" rel="noopener noreferrer" class="underline hover:text-green-700 transition">${address}</a>
+        </p>
+        <p class="mb-1">🌡️ 온도: <span class="font-extrabold">${current_weather.temp}°C</span> (체감: ${current_weather.feels_like}°C)</p>
+        <p class="mb-1">⛅ 날씨: ${current_weather.description}</p>
+        <p class="mb-1">💧 습도: <span class="font-extrabold">${current_weather.humidity}%</span></p>
+        `;
 
          // 날씨 이미지 설정 (사용자 업로드 이미지가 있으면 그걸 우선 사용)
          imgEl.src = userImg || `https://openweathermap.org/img/wn/${current_weather.icon}@4x.png`;
@@ -284,6 +372,14 @@
             }
          }
 
+         // 경고 메시지 표시 여부 결정
+         if (country !== '대한민국') { // Flask 서버에서 'country' 필드를 '대한민국'으로 보내는 경우
+            warningMessageEl.classList.remove('hidden');
+         } else {
+            warningMessageEl.classList.add('hidden');
+         }
+
+
          // 예보 리스트 초기화
          forecastList.innerHTML = "";
 
@@ -301,7 +397,7 @@
 
             // 하루 예보 박스 생성
             const dayContainer = document.createElement("div");
-            dayContainer.className = "bg-blue-200 rounded-xl p-4 shadow-lg mb-4 w-full text-blue-900 flex flex-col justify-between";
+            dayContainer.className = "flex flex-col mb-4 text-blue-900 rounded-xl p-4 shadow-lg";
 
             // 날짜 헤더
             const header = document.createElement("h4");
@@ -310,27 +406,24 @@
 
             // 시간별 예보 리스트 컨테이너
             const timeContainer = document.createElement("div");
-            timeContainer.className = "inline-flex gap-3 overflow-x-auto whitespace-nowrap pt-1";
+            timeContainer.className = "timeContainer"; // CSS에서 위에 스타일 정의한 class명
 
             // 시간별 카드 생성
             grouped[date].forEach(item => {
                const card = document.createElement("div");
-               card.className = "bg-blue-300 rounded-xl p-3 text-center flex-shrink-0 w-24 text-blue-900 border border-gray-300";
+               card.className = "timeCard"; // CSS에서 정의한 시간별 카드 스타일 클래스명
                card.innerHTML = `
-            <p class="font-semibold text-sm mb-1">${item.time}</p>
-            <img src="https://openweathermap.org/img/wn/${item.icon}@2x.png" class="mx-auto mb-1" alt="${item.description}" title="${item.description}" style="width:48px; height:48px;" loading="lazy" />
-            <p class="text-sm">🌡 ${item.temp ?? '-'}°C</p>
-            <p class="text-sm">💧 ${item.humidity ?? '-'}%</p>
-            <p class="text-xs capitalize truncate" title="${item.description}">${item.description}</p>
-         `;
+                <p class="font-semibold text-sm mb-1">${item.time}</p>
+                <img src="https://openweathermap.org/img/wn/${item.icon}@2x.png" class="mx-auto mb-1" alt="${item.description}" title="${item.description}" style="width:48px; height:48px;" loading="lazy" />
+                <p class="text-sm">🌡 ${item.temp ?? '-'}°C</p>
+                <p class="text-sm">💧 ${item.humidity ?? '-'}%</p>
+                <p class="text-xs capitalize truncate" title="${item.description}">${item.description}</p>
+            `;
                timeContainer.appendChild(card);
             });
 
-            // 날짜 헤더와 시간별 예보 리스트를 박스에 추가
             dayContainer.appendChild(header);
             dayContainer.appendChild(timeContainer);
-
-            // 전체 예보 리스트에 추가
             forecastList.appendChild(dayContainer);
          });
       }
@@ -380,9 +473,9 @@
       }
 
       // 지도 초기화 함수
-      async function initMap() {
-         const defaultLat = 37.4940906854463;
-         const defaultLng = 126.917031672483;
+      async function initializeMapAndFetchWeather() {
+         const defaultLat = 37.4940906854463; // 기존 값 유지
+         const defaultLng = 126.917031672483; // 기존 값 유지
          const mapContainer = document.getElementById('map');
 
          // 카카오 지도 생성
@@ -396,6 +489,10 @@
             position: new kakao.maps.LatLng(defaultLat, defaultLng),
             map: map
          });
+
+         // geocoder 객체 초기화
+         geocoder = new kakao.maps.services.Geocoder();
+
 
          // Google 위치 정보 받아오기 시도
          const googleLocation = await fetchGoogleLocation();
@@ -439,7 +536,6 @@
             fetchWeatherAndUpdate(lat, lon, marker);
          });
 
-         // 검색 버튼 클릭 이벤트 연결
          document.getElementById("search-btn").addEventListener("click", () => {
             const addr = document.getElementById("address-input").value.trim();
             if (!addr) {
@@ -456,10 +552,41 @@
                document.getElementById("search-btn").click();
             }
          });
+
+         // 업로드 페이지 이동 버튼 클릭 이벤트 추가
+         document.getElementById("go-upload-btn").addEventListener("click", () => {
+            window.location.href = "/upload";
+         });
+
+         document.getElementById("recenter-btn").addEventListener("click", () => {
+            if (navigator.geolocation) {
+               navigator.geolocation.getCurrentPosition(
+                  (position) => {
+                     const lat = position.coords.latitude;
+                     const lon = position.coords.longitude;
+                     const acc = position.coords.accuracy;
+                     const pos = new kakao.maps.LatLng(lat, lon);
+                     map.setCenter(pos);
+                     map.setLevel(5);
+                     marker.setPosition(pos);
+                     fetchWeatherAndUpdate(lat, lon, marker, acc);
+                  },
+                  (error) => {
+                     alert("현재 위치 정보를 가져올 수 없습니다. 위치 권한을 확인하세요.");
+                  },
+                  { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+               );
+            } else {
+               alert("이 브라우저에서는 위치 정보를 지원하지 않습니다.");
+            }
+         });
       }
 
-      // DOMContentLoaded 이벤트 발생 시 지도 초기화
-      document.addEventListener("DOMContentLoaded", initMap);
+      // kakao.maps.load() 함수를 사용하여 카카오맵 스크립트 로딩 완료 후 지도 초기화
+      // 이 부분이 가장 중요합니다.
+      kakao.maps.load(function () {
+         initializeMapAndFetchWeather();
+      });
 
    </script>
 
