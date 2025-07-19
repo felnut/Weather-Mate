@@ -216,9 +216,9 @@
       <div id="info" class="flex-1 text-base sm:text-lg leading-relaxed select-text text-center md:text-left">
          날씨 정보 없음
       </div>
-      <img id="weather-img" src="" alt="날씨 이미지"
-         class="w-32 sm:w-40 h-32 sm:h-40 rounded-xl object-cover self-center mx-auto md:mx-0" loading="lazy"
-         decoding="async" />
+      <img id="weather-img" src="https://openweathermap.org/img/wn/01d@4x.png" alt="날씨 이미지"        
+          class="w-32 sm:w-40 h-32 sm:h-40 rounded-xl object-cover self-center mx-auto md:mx-0" loading="lazy"        
+          decoding="async" />
    </section>
 
    <!-- 예보 컨테이너 -->
@@ -314,119 +314,124 @@
       }
 
       // 받아온 날씨 데이터를 UI에 표시하는 함수
-      function updateUIWithWeatherData(data, markerInstance, lat, lon, accuracy = null) { // marker -> markerInstance 이름 변경
+      // 받아온 날씨 데이터를 UI에 표시하는 함수
+      function updateUIWithWeatherData(data, markerInstance, lat, lon, accuracy = null) {
          const infoEl = document.getElementById("info");
          const imgEl = document.getElementById("weather-img");
          const forecastList = document.getElementById("forecast-list");
          const accuracyTextEl = document.getElementById("accuracy-text");
-         const warningMessageEl = document.getElementById("warning-message"); // 경고 메시지 엘리먼트 추가
+         const warningMessageEl = document.getElementById("warning-message");
 
-         // 서버에서 받은 데이터 구조 분해 할당
          const {
             korean_address: address,
             current_weather,
             forecast,
             user_weather_image: userImg,
-            country // 국가 정보 추가
+            country
          } = data;
 
-         // 위치 및 현재 날씨 정보 출력
          infoEl.innerHTML = `
-        <p class="text-2xl font-bold mb-2 select-text">
+            <p class="text-2xl font-bold mb-2 select-text">
             📍 위치:
             <a href="https://map.kakao.com/link/map/${lat},${lon}" target="_blank" rel="noopener noreferrer" class="underline hover:text-green-700 transition">${address}</a>
-        </p>
-        <p class="mb-1">🌡️ 온도: <span class="font-extrabold">${current_weather.temp}°C</span> (체감: ${current_weather.feels_like}°C)</p>
-        <p class="mb-1">⛅ 날씨: ${current_weather.description}</p>
-        <p class="mb-1">💧 습도: <span class="font-extrabold">${current_weather.humidity}%</span></p>
-        `;
+            </p>
+            <p class="mb-1">🌡️ 온도: <span class="font-extrabold">${current_weather.temp}°C</span> (체감: ${current_weather.feels_like}°C)</p>
+            <p class="mb-1">⛅ 날씨: ${current_weather.description}</p>
+            <p class="mb-1">💧 습도: <span class="font-extrabold">${current_weather.humidity}%</span></p>
+         `;
 
-         // 날씨 이미지 설정 (사용자 업로드 이미지가 있으면 그걸 우선 사용)
-         imgEl.src = userImg || `https://openweathermap.org/img/wn/${current_weather.icon}@4x.png`;
+         // ⭐ Fix: Ensure userImg is correctly handled and default to OpenWeatherMap if not present
+         if (userImg && userImg !== 'undefined' && userImg !== 'null' && userImg !== '') {
+            imgEl.src = userImg;
+         } else {
+            imgEl.src = `https://openweathermap.org/img/wn/${current_weather.icon}@4x.png`;
+         }
          imgEl.alt = current_weather.description;
 
-         // 위치 정확도(반경)를 원과 텍스트로 표시
-         if (accuracy) {
-            const radius = accuracy / 2; // 정확도 반의 반경 사용
-            accuracyTextEl.innerHTML = `📏 예상 위치 반경: 약 ${Math.round(radius)}m<br>원 안에 있을 것으로 예상됩니다.`;
-            accuracyTextEl.style.textAlign = 'center';
+         // ... (나머지 코드는 동일)
+      }
 
-            // 이전 원 제거
-            if (accuracyCircle) accuracyCircle.setMap(null);
+      // 위치 정확도(반경)를 원과 텍스트로 표시
+      if (accuracy) {
+         const radius = accuracy; // 정확도 반경 사용
+         accuracyTextEl.innerHTML = `📏 예상 위치 반경: 약 ${Math.round(radius)}m<br>원 안에 있을 것으로 예상됩니다.`;
+         accuracyTextEl.style.textAlign = 'center';
 
-            // 카카오 지도에 원 표시
-            accuracyCircle = new kakao.maps.Circle({
-               center: new kakao.maps.LatLng(lat, lon),
-               radius: radius,
-               strokeWeight: 0, // 테두리 두께 없음
-               fillColor: 'rgba(30,144,255,0.2)', // 파란색 반투명
-               fillOpacity: 1,
-               map: map
-            });
-         } else {
-            // 정확도 없을 때 텍스트와 원 제거
-            accuracyTextEl.textContent = "";
-            if (accuracyCircle) {
-               accuracyCircle.setMap(null);
-               accuracyCircle = null;
-            }
-         }
+         // 이전 원 제거
+         if (accuracyCircle) accuracyCircle.setMap(null);
 
-         // 경고 메시지 표시 여부 결정
-         if (country !== '대한민국') { // Flask 서버에서 'country' 필드를 '대한민국'으로 보내는 경우
-            warningMessageEl.classList.remove('hidden');
-         } else {
-            warningMessageEl.classList.add('hidden');
-         }
-
-
-         // 예보 리스트 초기화
-         forecastList.innerHTML = "";
-
-         // 날짜별로 예보 그룹핑
-         const grouped = {};
-         forecast.forEach(item => {
-            if (!grouped[item.date]) grouped[item.date] = [];
-            grouped[item.date].push(item);
+         // 카카오 지도에 원 표시
+         accuracyCircle = new kakao.maps.Circle({
+            center: new kakao.maps.LatLng(lat, lon),
+            radius: radius,
+            strokeWeight: 0, // 테두리 두께 없음
+            fillColor: 'rgba(30,144,255,0.2)', // 파란색 반투명
+            fillOpacity: 1,
+            map: map
          });
+      } else {
+         // 정확도 없을 때 텍스트와 원 제거
+         accuracyTextEl.textContent = "";
+         if (accuracyCircle) {
+            accuracyCircle.setMap(null);
+            accuracyCircle = null;
+         }
+      }
 
-         // 최대 4일치 예보만 출력
-         Object.keys(grouped).slice(0, 4).forEach(date => {
-            const [y, m, d] = date.split("-");
-            const dayLabel = `${parseInt(m)}월 ${parseInt(d)}일`;
+      // 경고 메시지 표시 여부 결정
+      if (country !== '대한민국') { // Flask 서버에서 'country' 필드를 '대한민국'으로 보내는 경우
+         warningMessageEl.classList.remove('hidden');
+      } else {
+         warningMessageEl.classList.add('hidden');
+      }
 
-            // 하루 예보 박스 생성
-            const dayContainer = document.createElement("div");
-            dayContainer.className = "flex flex-col mb-4 text-blue-900 rounded-xl p-4 shadow-lg";
 
-            // 날짜 헤더
-            const header = document.createElement("h4");
-            header.className = "font-bold text-lg mb-4";
-            header.textContent = dayLabel;
+      // 예보 리스트 초기화
+      forecastList.innerHTML = "";
 
-            // 시간별 예보 리스트 컨테이너
-            const timeContainer = document.createElement("div");
-            timeContainer.className = "timeContainer"; // CSS에서 위에 스타일 정의한 class명
+      // 날짜별로 예보 그룹핑
+      const grouped = {};
+      forecast.forEach(item => {
+         if (!grouped[item.date]) grouped[item.date] = [];
+         grouped[item.date].push(item);
+      });
 
-            // 시간별 카드 생성
-            grouped[date].forEach(item => {
-               const card = document.createElement("div");
-               card.className = "timeCard"; // CSS에서 정의한 시간별 카드 스타일 클래스명
-               card.innerHTML = `
+      // 최대 4일치 예보만 출력
+      Object.keys(grouped).slice(0, 4).forEach(date => {
+         const [y, m, d] = date.split("-");
+         const dayLabel = `${parseInt(m)}월 ${parseInt(d)}일`;
+
+         // 하루 예보 박스 생성
+         const dayContainer = document.createElement("div");
+         dayContainer.className = "flex flex-col mb-4 text-blue-900 rounded-xl p-4 shadow-lg";
+
+         // 날짜 헤더
+         const header = document.createElement("h4");
+         header.className = "font-bold text-lg mb-4";
+         header.textContent = dayLabel;
+
+         // 시간별 예보 리스트 컨테이너
+         const timeContainer = document.createElement("div");
+         timeContainer.className = "timeContainer"; // CSS에서 위에 스타일 정의한 class명
+
+         // 시간별 카드 생성
+         grouped[date].forEach(item => {
+            const card = document.createElement("div");
+            card.className = "timeCard"; // CSS에서 정의한 시간별 카드 스타일 클래스명
+            card.innerHTML = `
                 <p class="font-semibold text-sm mb-1">${item.time}</p>
                 <img src="https://openweathermap.org/img/wn/${item.icon}@2x.png" class="mx-auto mb-1" alt="${item.description}" title="${item.description}" style="width:48px; height:48px;" loading="lazy" />
                 <p class="text-sm">🌡 ${item.temp ?? '-'}°C</p>
                 <p class="text-sm">💧 ${item.humidity ?? '-'}%</p>
                 <p class="text-xs capitalize truncate" title="${item.description}">${item.description}</p>
             `;
-               timeContainer.appendChild(card);
-            });
-
-            dayContainer.appendChild(header);
-            dayContainer.appendChild(timeContainer);
-            forecastList.appendChild(dayContainer);
+            timeContainer.appendChild(card);
          });
-      }
+
+         dayContainer.appendChild(header);
+         dayContainer.appendChild(timeContainer);
+         forecastList.appendChild(dayContainer);
+      });
 
       // Google 위치 정보 가져오기 (서버 연동)
       async function fetchGoogleLocation() {

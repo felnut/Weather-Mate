@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, send_from_directory
 import os
 import re
 import stat
@@ -12,22 +12,34 @@ import io
 import subprocess
 import time
 from dotenv import load_dotenv
+import glob
 
 # 환경 변수 로드 및 Flask 앱 초기화
-load_dotenv()  
+load_dotenv()
 
-app = Flask(__name__)  
-Compress(app)  # HTTP 응답 압축 활성화
+# 사용자 이미지를 저장할 새로운 폴더 경로 설정
+# 현재 스크립트 파일이 있는 디렉토리의 'data/images' 폴더를 사용합니다.
+USER_IMAGES_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'images')
 
-# 업로드할 이미지 저장 폴더 경로 설정 및 폴더가 없으면 생성
-UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'weather_images')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Flask 앱 초기화 시, 기본 static 폴더는 그대로 사용
+app = Flask(__name__, static_folder='static')
+Compress(app) # HTTP 응답 압축 활성화
+
+# 사용자 이미지 폴더에 대한 정적 파일 서비스 설정 (새로 추가/수정)
+# /user_images/ 경로로 요청이 오면 USER_IMAGES_FOLDER에서 파일을 찾음
+@app.route('/user_images/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(USER_IMAGES_FOLDER, filename)
+
+
+# 폴더가 없으면 생성 (애플리케이션 시작 시 한 번 실행)
+os.makedirs(USER_IMAGES_FOLDER, exist_ok=True)
 
 # 허용할 이미지 확장자 집합
 ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'}
 
 # -------------------------------
-# 한글 → 영어 상태명 전역 딕셔너리
+# 한글 → 영어 상태명 전역 딕셔너리 (기존 코드)
 # -------------------------------
 KOR_TO_ENG_WEATHER = {
    "맑음": "Clear",
@@ -47,7 +59,7 @@ KOR_TO_ENG_WEATHER = {
 }
 
 # -------------------------------
-# 주소 처리 관련 함수
+# 주소 처리 관련 함수 (기존 코드)
 # -------------------------------
 
 def simplify_address(addr: str) -> str:
@@ -80,11 +92,11 @@ def get_address_detail(geo_data: dict) -> str:
    documents = geo_data.get('documents', [])
    if not documents:
       return "주소 정보 없음"
-   
+
    addr_info = documents[0].get('address') or documents[0].get('road_address')
    if not addr_info:
       return "주소 정보 없음"
-   
+
    parts = []
    if addr_info.get('region_1depth_name'):
       parts.append(addr_info['region_1depth_name'])
@@ -95,7 +107,7 @@ def get_address_detail(geo_data: dict) -> str:
    return ' '.join(parts)
 
 # -------------------------------
-# 날씨 상태 매핑 함수
+# 날씨 상태 매핑 함수 (기존 코드)
 # -------------------------------
 
 def map_weather_info(description: str, icon: str):
@@ -114,6 +126,7 @@ def map_weather_info(description: str, icon: str):
       "우박": ["thunderstorm with hail"],
       "눈": ["light snow", "snow", "sleet"],
       "폭설": ["heavy snow"],
+      "진눈깨비": ["light shower snow", "shower snow"],
       "소낙눈": ["light shower snow", "shower snow"],
       "안개": ["mist", "smoke", "haze", "fog"],
       "황사": ["sand"]
@@ -133,7 +146,7 @@ def map_weather_info(description: str, icon: str):
    return description, icon or "01d"
 
 # -------------------------------
-# API 호출 (병렬)
+# API 호출 (병렬) (기존 코드)
 # -------------------------------
 
 def fetch_url(url, results, key):
@@ -142,63 +155,96 @@ def fetch_url(url, results, key):
       headers = {}
       if 'dapi.kakao.com' in url:
          headers['Authorization'] = f'KakaoAK {os.getenv("KAKAO_REST_API_KEY")}'
-      
+
       resp = requests.get(url, headers=headers, timeout=5)
       resp.raise_for_status()
       results[key] = resp.json()
-   
+
    except Exception as e:
       print(f"[ERROR] {key} API 호출 실패: {str(e)}")
       results[key] = {'error': str(e)}
 
 # -------------------------------
-# 이미지 처리 및 저장
+# 이미지 처리 및 저장 (수정)
 # -------------------------------
 
 def optimize_gif_with_gifsicle(input_bytes: bytes) -> bytes:
-   try:
-      process = subprocess.run(
-         ['gifsicle', '-O3', '--colors', '256'],
-         input=input_bytes, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
-      )
-      return process.stdout
-   except subprocess.CalledProcessError as e:
-      print(f"gifsicle 최적화 실패: {e.stderr.decode()}")
-      return input_bytes
+    try:
+        process = subprocess.run(
+            ['gifsicle', '-O3', '--colors', '256'],
+            input=input_bytes, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
+        )
+        return process.stdout
+    except subprocess.CalledProcessError as e:
+        print(f"gifsicle 최적화 실패: {e.stderr.decode()}")
+        # 최적화 실패 시 원본 바이트 반환
+        return input_bytes 
 
-def save_optimized_image(img_data: bytes, ext: str, weather: str):
-   ext_clean = ext.lstrip('.').lower()
-   filename = secure_filename(f"{weather}.{ext_clean}")
-   file_path = os.path.join(UPLOAD_FOLDER, filename)
+def save_optimized_image(image_data: bytes, weather_condition: str, file_extension: str) -> str:
+    """
+    주어진 이미지 데이터를 최적화하여 저장하고, 저장된 파일의 이름을 반환합니다.
+    Args:
+        image_data: 이미지의 바이너리 데이터.
+        weather_condition: 날씨 조건 (예: 'clear', 'rain').
+        file_extension: 원본 파일의 확장자 (예: '.png', '.jpg').
+    Returns:
+        저장된 파일의 이름 (확장자 포함).
+    """
+    try:
+        # 확장자가 없거나 허용되지 않으면 기본값으로 .png 설정
+        if not file_extension or file_extension.lower() not in ALLOWED_EXTENSIONS:
+            print(f"경고: 유효하지 않거나 없는 확장자 '{file_extension}'. '.png'로 대체합니다.")
+            file_extension = '.png'
+        
+        # 파일명은 '날씨조건.확장자' 형태로 만듭니다. (확장자 포함)
+        # secure_filename으로 한 번 더 처리하여 안전한 파일명 생성
+        filename_base = secure_filename(weather_condition.lower())
+        filename = f"{filename_base}{file_extension.lower()}"
+        filepath = os.path.join(USER_IMAGES_FOLDER, filename)
 
-   for fname in os.listdir(UPLOAD_FOLDER):
-      if fname.startswith(weather + "."):
-         os.remove(os.path.join(UPLOAD_FOLDER, fname))
+        # 해당 날씨 조건으로 시작하는 기존의 모든 확장자 파일을 삭제
+        for fname in glob.glob(os.path.join(USER_IMAGES_FOLDER, f"{filename_base}.*")):
+            if os.path.isfile(fname):
+                os.remove(fname)
 
-   try:
-      if ext_clean == 'gif':
-         optimized_bytes = optimize_gif_with_gifsicle(img_data)
-         with open(file_path, 'wb') as f:
-            f.write(optimized_bytes)
+        if file_extension.lower() == '.gif':
+            # GIF는 gifsicle로 최적화 시도
+            optimized_data = optimize_gif_with_gifsicle(image_data)
+            with open(filepath, 'wb') as f:
+                f.write(optimized_data)
+        elif file_extension.lower() == '.svg':
+            # SVG는 PIL로 처리하기 어려우므로 원본 저장
+            with open(filepath, 'wb') as f:
+                f.write(image_data)
+        else:
+            # 기타 이미지 파일은 PIL로 최적화
+            img = Image.open(io.BytesIO(image_data))
+            # JPG로 저장할 때 RGBA 모드 이미지는 RGB로 변환 (투명도 정보 손실)
+            if img.mode == 'RGBA' and file_extension.lower() == '.jpg':
+                img = img.convert('RGB')
+            # 이미지 크기 조절 (예: 최대 800x800)
+            img.thumbnail((800, 800), Image.Resampling.LANCZOS)
+            # 파일 형식에 따라 저장
+            format_map = {
+                '.png': 'PNG', 
+                '.jpg': 'JPEG', 
+                '.jpeg': 'JPEG', 
+                '.webp': 'WEBP'
+            }
+            save_format = format_map.get(file_extension.lower(), 'PNG')
+            img.save(filepath, format=save_format, optimize=True, quality=85) # JPG/PNG 최적화
 
-      elif ext_clean == 'svg':
-         with open(file_path, 'wb') as f:
-            f.write(img_data)
+        # 파일 권한 설정 (읽기 가능하게)
+        os.chmod(filepath, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+        print(f"이미지 저장 성공: {filepath}")
+        return filename # 저장된 파일의 최종 이름 (확장자 포함) 반환
 
-      else:
-         img = Image.open(io.BytesIO(img_data))
-         img.thumbnail((800, 800), Image.Resampling.LANCZOS)
-         format_map = {'png': 'PNG', 'jpg': 'JPEG', 'jpeg': 'JPEG', 'webp': 'WEBP'}
-         save_format = format_map.get(ext_clean, 'PNG')
-         img.save(file_path, format=save_format, optimize=True)
-
-      return True, None
-
-   except Exception as e:
-      return False, str(e)
+    except Exception as e:
+        print(f"이미지 저장 및 최적화 중 오류 발생: {e}")
+        return None
 
 # -------------------------------
-# 캐시 관련 설정
+# 캐시 관련 설정 (기존 코드)
 # -------------------------------
 
 weather_cache = {}
@@ -256,17 +302,18 @@ def weather_view():
 
    if any('error' in results.get(k, {}) for k in urls):
       return jsonify({
-            'cod': 500,
-            'message': 'API 호출 오류',
-            'details': {k: results[k].get('error') for k in urls if 'error' in results.get(k, {})}
+               'cod': 500,
+               'message': 'API 호출 오류',
+               'details': {k: results[k].get('error') for k in urls if 'error' in results.get(k, {})}
       })
 
    weather_data = results['weather']
-   base_name = weather_data['weather'][0]['main'].lower()
+   # `base_name`을 날씨 영어 조건으로 변경
+   main_weather_english = weather_data['weather'][0]['main'].lower()
 
    if weather_data.get('sys', {}).get('country') != 'KR':
       return jsonify({'cod': 403, 'message': '해당 위치는 지원하지 않는 지역입니다.'})
-      
+
 
    forecast_data = results.get('forecast', {})
    geo_data = results.get('geo', {})
@@ -295,13 +342,22 @@ def weather_view():
          'icon': icon_hourly
       })
 
+   # 사용자 업로드 이미지 확인 및 URL 구성 (수정)
    user_img_url = None
-   base_name = weather_data['weather'][0]['main'].lower()
-   for ext in ALLOWED_EXTENSIONS:
-      img_path = os.path.join(UPLOAD_FOLDER, f"{base_name}{ext}")
-      if os.path.isfile(img_path):
-         user_img_url = f"/static/weather_images/{base_name}{ext}"
-         break
+   # `glob`을 사용하여 해당 날씨 조건으로 시작하는 모든 확장자의 파일을 찾습니다.
+   user_image_path_pattern = os.path.join(USER_IMAGES_FOLDER, f"{main_weather_english}.*") 
+   found_user_images = glob.glob(user_image_path_pattern)
+   
+   if found_user_images:
+       # 사용자 이미지가 존재하면, 첫 번째로 찾은 파일의 URL을 사용합니다.
+       # Flask의 `uploaded_file` 엔드포인트를 사용하여 '/user_images/<filename>' 경로를 생성합니다.
+       final_image_filename = os.path.basename(found_user_images[0])
+       user_img_url = url_for('uploaded_file', filename=final_image_filename)
+       print(f"사용자 이미지 발견: {user_img_url}")
+   else:
+       # 사용자 이미지가 없으면 기본 이미지 사용 (static 폴더)
+       user_img_url = url_for('static', filename=f'images/{icon_fixed}.png')
+       print(f"기본 이미지 사용: {user_img_url}")
 
    response_json = {
       'cod': 200,
@@ -314,8 +370,9 @@ def weather_view():
          'humidity': round(weather_data['main']['humidity']),
          'feels_like': round(weather_data['main'].get('feels_like', 0))
       },
-      'user_weather_image': user_img_url,
-      'forecast': hourly_forecast
+      'user_weather_image': user_img_url, # 최종 이미지 URL 사용
+      'forecast': hourly_forecast,
+      'main_weather_english': main_weather_english # 디버깅용으로 추가
    }
 
    weather_cache[cache_key] = (time.time(), response_json)
@@ -327,59 +384,70 @@ def upload_page():
 
 @app.route('/upload-image', methods=['POST'])
 def upload_image():
-   weather = request.form.get('weather')
-   if not weather:
-      return jsonify({'success': False, 'message': '날씨 선택이 필요합니다.'})
+    weather_condition = request.form.get('weather')
+    if not weather_condition:
+        return jsonify({'success': False, 'message': '날씨 조건이 필요합니다.'}), 400
 
-   weather_eng = KOR_TO_ENG_WEATHER.get(weather, weather).lower()
+    # 한글 날씨 조건을 영어로 변환 (저장 폴더명/파일명에 사용)
+    weather_condition_eng = KOR_TO_ENG_WEATHER.get(weather_condition, weather_condition).lower()
 
-   file = request.files.get('image')
-   image_url = request.form.get('image_url')
+    image_file = request.files.get('image')
+    image_url = request.form.get('image_url')
 
-   if file:
-      ext = os.path.splitext(file.filename)[1].lower()
-      if ext not in ALLOWED_EXTENSIONS:
-         return jsonify({'success': False, 'message': '허용되지 않은 파일 확장자입니다.'})
+    if image_file:
+        original_filename = secure_filename(image_file.filename)
+        # 파일명에서 확장자 추출
+        file_extension = os.path.splitext(original_filename)[1]
+        if file_extension.lower() not in ALLOWED_EXTENSIONS:
+            return jsonify({'success': False, 'message': '허용되지 않는 파일 확장자입니다.'}), 400
+        
+        image_data = image_file.read()
 
-      success, msg = save_optimized_image(file.read(), ext, weather_eng)
-      return jsonify({'success': success, 'message': msg})
+        # save_optimized_image 함수가 저장된 파일명을 반환하도록 수정했으므로, 그 값을 받아서 사용합니다.
+        saved_filename = save_optimized_image(image_data, weather_condition_eng, file_extension)
+        if not saved_filename:
+            return jsonify({'success': False, 'message': '이미지 저장에 실패했습니다.'}), 500
+        
+        # 클라이언트에게는 저장된 파일명을 반환하여 미리보기 URL을 구성하도록 합니다.
+        return jsonify({'success': True, 'message': '이미지 업로드 및 저장 성공!', 'filename': saved_filename}), 200
 
-   if image_url:
-      url_clean = image_url.strip()
-      base_url = url_clean.split('?')[0]
-      
-      match = re.search(r'\.(png|jpg|jpeg|gif|svg|webp)$', base_url, re.IGNORECASE)
-      if not match:
-         return jsonify({'success': False, 'message': '지원되지 않는 이미지 URL입니다.'})
-      
-      ext = '.' + match.group(1).lower()
-      try:
-         resp = requests.get(url_clean, timeout=10)
-         resp.raise_for_status()
-         
-         if not resp.headers.get('Content-Type', '').startswith('image/'):
-            return jsonify({'success': False, 'message': 'URL이 이미지 파일이 아닙니다.'})
-         
-         success, msg = save_optimized_image(resp.content, ext, weather_eng)
-         return jsonify({'success': success, 'message': msg})
-      
-      except Exception as e:
-         return jsonify({'success': False, 'message': f'이미지 다운로드 실패: {str(e)}'})
+    elif image_url:
+        # URL의 유효성 검사 및 허용된 확장자 확인
+        if not re.match(r'https?://.*\.(png|jpg|jpeg|gif|svg|webp)(?:\?|$)', image_url, re.IGNORECASE):
+            return jsonify({'success': False, 'message': '유효하지 않은 이미지 URL입니다. (png, jpg, jpeg, gif, svg, webp 확장자만 허용)'}), 400
+        
+        try:
+            response = requests.get(image_url, stream=True, timeout=10)
+            response.raise_for_status()
+            image_data = response.content
+            
+            # URL에서 확장자를 추출합니다. (쿼리 파라미터 제거 후)
+            file_extension = os.path.splitext(image_url.split('?')[0])[1]
+            if not file_extension: # 확장자가 없는 경우 .png 기본값
+                file_extension = '.png'
 
-   return jsonify({'success': False, 'message': '이미지 파일 또는 URL이 필요합니다.'})
+            saved_filename = save_optimized_image(image_data, weather_condition_eng, file_extension)
+            if not saved_filename:
+                return jsonify({'success': False, 'message': '이미지 저장에 실패했습니다.'}), 500
+
+            return jsonify({'success': True, 'message': '이미지 URL 업로드 및 저장 성공!', 'filename': saved_filename}), 200
+
+        except requests.exceptions.RequestException as e:
+            return jsonify({'success': False, 'message': f'이미지 다운로드 실패: {str(e)}'}), 500
+    else:
+        return jsonify({'success': False, 'message': '이미지 파일 또는 URL을 제공해야 합니다.'}), 400
+
 
 @app.route('/reset-all-images', methods=['POST'])
 def reset_all_images():
    try:
-      upload_dir = os.path.join(app.root_path, 'static', 'weather_images')
-      for fname in os.listdir(upload_dir):
-         fpath = os.path.join(upload_dir, fname)
-         if os.path.isfile(fpath):
-            os.remove(fpath)
-      return jsonify(success=True)
-   
+       # 사용자 이미지 폴더 내의 모든 파일 삭제
+       for f in glob.glob(os.path.join(USER_IMAGES_FOLDER, '*')):
+           if os.path.isfile(f):
+               os.remove(f)
+       return jsonify({'success': True, 'message': '모든 사용자 이미지가 성공적으로 초기화되었습니다.'}), 200
    except Exception as e:
-      return jsonify(success=False, message=str(e))
+       return jsonify({'success': False, 'message': f'이미지 초기화 중 오류 발생: {str(e)}'}), 500
 
 @app.route('/geolocate', methods=['POST'])
 def geolocate_by_google():
@@ -389,7 +457,7 @@ def geolocate_by_google():
       resp = requests.post(url, timeout=5)
       resp.raise_for_status()
       return jsonify(resp.json())
-   
+
    except Exception as e:
       return jsonify({'error': str(e)}), 500
 
